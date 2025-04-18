@@ -38,3 +38,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

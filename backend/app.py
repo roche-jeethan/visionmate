@@ -7,12 +7,15 @@ import base64
 from ultralytics import YOLO
 from dotenv import load_dotenv
 
-
+# Load environment variables
 load_dotenv()
-SERVER_IP ="192.168.137.1"
+SERVER_IP = os.getenv("SERVER_IP")
+if not SERVER_IP:
+    raise ValueError("SERVER_IP not found in environment variables")
+
+print(f"Server running on IP: {SERVER_IP}")
 
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,7 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
 print(f"Loading YOLO model from {MODEL_PATH}")
