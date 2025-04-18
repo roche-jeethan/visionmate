@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useCamera } from './src/permissions/useCamera';
 
-const SERVER_IP = process.env.SERVER_IP;
+const SERVER_IP = "192.168.137.1";
 // const SERVER_IP = "172.18.3.156";
 
 const App = () => {
