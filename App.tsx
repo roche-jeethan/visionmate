@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { useCamera } from './src/permissions/useCamera'; // Add this import
 
 const SERVER_IP = process.env.SERVER_IP;
+// const SERVER_IP = "172.18.3.156";
 
 const App = () => {
     const { hasPermission, requestPermission } = useCamera(); // Replace permission state with hook
@@ -159,20 +160,20 @@ const App = () => {
         }
     }, [isActive, connectWebSocket, closeWebSocket]);
 
-    if (!hasPermission) {
-        return (
-            <View style={styles.permissionContainer}>
-                <TouchableOpacity 
-                    style={styles.permissionButton}
-                    onPress={requestPermission}
-                >
-                    <Text style={styles.permissionButtonText}>
-                        Grant Camera Permission
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
+    // if (!hasPermission) {
+    //     return (
+    //         <View style={styles.permissionContainer}>
+    //             <TouchableOpacity 
+    //                 style={styles.permissionButton}
+    //                 onPress={requestPermission}
+    //             >
+    //                 <Text style={styles.permissionButtonText}>
+    //                     Grant Camera Permission
+    //                 </Text>
+    //             </TouchableOpacity>
+    //         </View>
+    //     );
+    // }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -182,6 +183,7 @@ const App = () => {
                     style={StyleSheet.absoluteFill}
                     facing={facing}
                     enableTorch={isTorchOn}
+                    animateShutter={false}
                 >
                     {!isConnected && (
                         <Text style={styles.connectionStatus}>

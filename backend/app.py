@@ -7,9 +7,8 @@ import base64
 from ultralytics import YOLO
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
-SERVER_IP = os.getenv('SERVER_IP', 'localhost')
+SERVER_IP = os.getenv("SERVER_IP", "localhost")
 
 app = FastAPI()
 
