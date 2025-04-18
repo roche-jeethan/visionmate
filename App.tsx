@@ -3,13 +3,13 @@ import { AppState, AppStateStatus, SafeAreaView, StyleSheet, View, Text, Touchab
 import { CameraView, CameraType, CameraPictureOptions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { useCamera } from './src/permissions/useCamera'; // Add this import
+import { useCamera } from './src/permissions/useCamera';
 
 const SERVER_IP = process.env.SERVER_IP;
 // const SERVER_IP = "172.18.3.156";
 
 const App = () => {
-    const { hasPermission, requestPermission } = useCamera(); // Replace permission state with hook
+    const { hasPermission, requestPermission } = useCamera(); 
     const [detectionResult, setDetectionResult] = useState<string>("");
     const [isConnected, setIsConnected] = useState(false);
     const [facing, setFacing] = useState<CameraType>("back");
@@ -23,7 +23,6 @@ const App = () => {
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
     const connectionAttemptRef = useRef<number>(0);
 
-    // Replace permission request useEffect with permission request on mount
     useEffect(() => {
         requestPermission();
     }, []);
