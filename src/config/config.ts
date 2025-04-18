@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-const SERVER_IP = process.env.SERVER_IP || '192.168.137.1';
+const SERVER_IP = process.env.SERVER_IP;
 const WS_URL = Platform.select({
     native: `ws://${SERVER_IP}:8000/ws/video`,
     default: 'ws://localhost:8000/ws/video',

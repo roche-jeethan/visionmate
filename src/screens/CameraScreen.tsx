@@ -1,14 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { AppState, AppStateStatus, SafeAreaView, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { AppState, AppStateStatus, SafeAreaView, StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, CameraType, CameraPictureOptions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useCamera } from '../permissions/useCamera';
+import { SERVER_IP, WS_URL } from '../config/config';
 
-const SERVER_IP = process.env.SERVER_IP;
-// const SERVER_IP = "172.18.3.156";
-
-const App = () => {
+export default function CameraScreen() {
     const { hasPermission, requestPermission } = useCamera(); 
     const [detectionResult, setDetectionResult] = useState<string>("");
     const [isConnected, setIsConnected] = useState(false);
@@ -64,7 +62,7 @@ const App = () => {
         console.log('Connecting to WebSocket...');
         setIsConnected(false);
         
-        const ws = new WebSocket(`ws://${SERVER_IP}:8000/ws/video`);
+        const ws = new WebSocket(WS_URL);
         
         ws.onopen = () => {
             if (currentAttempt !== connectionAttemptRef.current) {
@@ -277,5 +275,3 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
 });
-
-export default App;
