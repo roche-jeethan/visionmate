@@ -12,6 +12,7 @@
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-navigation/material-top-tabs": "^7.2.10",
+    "axios": "^1.8.4",
     "expo": "~52.0.46",
     "expo-camera": "^16.0.18",
     "expo-status-bar": "~2.0.1",

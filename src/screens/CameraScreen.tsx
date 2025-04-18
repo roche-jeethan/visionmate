@@ -4,7 +4,7 @@ import { CameraView, CameraType, CameraPictureOptions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useCamera } from '../permissions/useCamera';
-import { SERVER_IP, WS_URL } from '../config/config';
+import { WS_URL } from '../../config';
 
 export default function CameraScreen() {
     const { hasPermission, requestPermission } = useCamera(); 
