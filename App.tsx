@@ -1,14 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { AppState, AppStateStatus, SafeAreaView, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { AppState, AppStateStatus, SafeAreaView, StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, CameraType, CameraPictureOptions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useCamera } from './src/permissions/useCamera'; // Add this import
 
-const SERVER_IP = process.env.SERVER_IP;
+const SERVER_IP ="192.168.137.1"
 
 const App = () => {
-    const { hasPermission, requestPermission } = useCamera(); // Replace permission state with hook
+    const {hasPermission, requestPermission } = useCamera(); // Replace permission state with hook
     const [detectionResult, setDetectionResult] = useState<string>("");
     const [isConnected, setIsConnected] = useState(false);
     const [facing, setFacing] = useState<CameraType>("back");
@@ -22,7 +22,7 @@ const App = () => {
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
     const connectionAttemptRef = useRef<number>(0);
 
-    // Replace permission request useEffect with permission request on mount
+    
     useEffect(() => {
         requestPermission();
     }, []);
@@ -159,21 +159,6 @@ const App = () => {
         }
     }, [isActive, connectWebSocket, closeWebSocket]);
 
-    if (!hasPermission) {
-        return (
-            <View style={styles.permissionContainer}>
-                <TouchableOpacity 
-                    style={styles.permissionButton}
-                    onPress={requestPermission}
-                >
-                    <Text style={styles.permissionButtonText}>
-                        Grant Camera Permission
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.camera}>
@@ -182,6 +167,8 @@ const App = () => {
                     style={StyleSheet.absoluteFill}
                     facing={facing}
                     enableTorch={isTorchOn}
+                    animateShutter={false}
+                    
                 >
                     {!isConnected && (
                         <Text style={styles.connectionStatus}>
