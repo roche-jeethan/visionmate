@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "visioncamera",
-    "slug": "visioncamera",
+    "name": "visionmate",
+    "slug": "visionmate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
