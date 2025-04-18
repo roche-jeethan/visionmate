@@ -1,13 +1,17 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { Ionicons } from "@expo/vector-icons";  
+import { Ionicons } from "@expo/vector-icons"; 
+
+import { LogBox } from "react-native";
 
 import SettingsScreen from "./src/screens/SettingsScreen";
 import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
 import LocationScreen from "./src/screens/LocationScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+
+LogBox.ignoreAllLogs();
 
 const screens = [
   { name: "Settings", component: SettingsScreen, icon: "settings" },
@@ -38,8 +42,8 @@ export default function App() {
             name={screen.name}
             component={screen.component}
             options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name={screen.icon} size={size} color={color} />
+              tabBarIcon: ({ color }) => (
+                <Ionicons name={screen.icon as keyof typeof Ionicons['glyphMap']} size={24} color={color} />
               ),
             }}
           />
