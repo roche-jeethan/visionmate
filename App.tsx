@@ -4,9 +4,7 @@ import { CameraView, CameraType, CameraPictureOptions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useCamera } from './src/permissions/useCamera';
-
-const SERVER_IP = "192.168.137.1";
-// const SERVER_IP = "172.18.3.156";
+import { SERVER_IP, WS_URL } from './src/config/config';
 
 const App = () => {
     const { hasPermission, requestPermission } = useCamera(); 
@@ -64,7 +62,7 @@ const App = () => {
         console.log('Connecting to WebSocket...');
         setIsConnected(false);
         
-        const ws = new WebSocket(`ws://${SERVER_IP}:8000/ws/video`);
+        const ws = new WebSocket(WS_URL);
         
         ws.onopen = () => {
             if (currentAttempt !== connectionAttemptRef.current) {
