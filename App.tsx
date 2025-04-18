@@ -3,12 +3,13 @@ import { AppState, AppStateStatus, SafeAreaView, StyleSheet, View, Text, Touchab
 import { CameraView, CameraType, CameraPictureOptions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { useCamera } from './src/permissions/useCamera'; // Add this import
+import { useCamera } from './src/permissions/useCamera';
 
-const SERVER_IP ="192.168.137.1"
+const SERVER_IP = process.env.SERVER_IP;
+// const SERVER_IP = "172.18.3.156";
 
 const App = () => {
-    const {hasPermission, requestPermission } = useCamera(); // Replace permission state with hook
+    const { hasPermission, requestPermission } = useCamera(); 
     const [detectionResult, setDetectionResult] = useState<string>("");
     const [isConnected, setIsConnected] = useState(false);
     const [facing, setFacing] = useState<CameraType>("back");
@@ -22,7 +23,6 @@ const App = () => {
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
     const connectionAttemptRef = useRef<number>(0);
 
-    
     useEffect(() => {
         requestPermission();
     }, []);
@@ -159,6 +159,21 @@ const App = () => {
         }
     }, [isActive, connectWebSocket, closeWebSocket]);
 
+    // if (!hasPermission) {
+    //     return (
+    //         <View style={styles.permissionContainer}>
+    //             <TouchableOpacity 
+    //                 style={styles.permissionButton}
+    //                 onPress={requestPermission}
+    //             >
+    //                 <Text style={styles.permissionButtonText}>
+    //                     Grant Camera Permission
+    //                 </Text>
+    //             </TouchableOpacity>
+    //         </View>
+    //     );
+    // }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.camera}>
@@ -168,7 +183,6 @@ const App = () => {
                     facing={facing}
                     enableTorch={isTorchOn}
                     animateShutter={false}
-                    
                 >
                     {!isConnected && (
                         <Text style={styles.connectionStatus}>

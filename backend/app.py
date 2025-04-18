@@ -25,7 +25,9 @@ app.add_middleware(
 
 MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
 print(f"Loading YOLO model from {MODEL_PATH}")
+print(f"Loading YOLO model from {MODEL_PATH}")
 model = YOLO(MODEL_PATH)
+print("Model loaded successfully")
 print(" Model loaded successfully")
 
 async def process_frame_detection(frame):
@@ -35,6 +37,7 @@ async def process_frame_detection(frame):
     try:
         
         results = model(frame)[0]
+
         
         
         detected_objects = []
