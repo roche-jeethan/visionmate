@@ -19,6 +19,8 @@ interface TranslationContextType {
   setTargetLanguage: (lang: string) => Promise<void>;
   supportedLanguages: Language[];
   translateText: (text: string) => Promise<string>;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
@@ -46,10 +48,21 @@ const defaultTranslations = {
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
   const [targetLanguage, setTargetLanguage] = useState<string>('en');
   const [isChanging, setIsChanging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const loadLanguage = async () => {
-      const storedLang = await getStoredLanguage();
-      setTargetLanguage(storedLang);
+      try {
+        setIsLoading(true);
+        const storedLang = await getStoredLanguage();
+        setTargetLanguage(storedLang);
+      } catch (error) {
+        setError('Failed to load language settings');
+        console.error('Load language error:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadLanguage();
   }, []);
@@ -58,6 +71,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     if (!text || targetLanguage === 'en') {
       return text;
     }
+
+    setIsLoading(true);
+    setError(null);
 
     try {
       const response = await fetch(`http://${SERVER_IP}:8000/translate`, {
@@ -69,28 +85,35 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         })
       });
 
-      if (!response.ok) throw new Error('Translation failed');
+      if (!response.ok) {
+        throw new Error(`Translation failed: ${response.statusText}`);
+      }
       
       const data = await response.json();
       return data.translated_text || text;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Translation failed';
+      setError(errorMessage);
       console.error('Translation error:', error);
       return text;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSetTargetLanguage = async (lang: string): Promise<void> => {
     if (isChanging) return;
     
-    try {
-      setIsChanging(true);
+    setIsChanging(true);
+    setError(null);
 
+    try {
       if (lang !== targetLanguage) {
-        setTargetLanguage(lang);
         await AsyncStorage.setItem('targetLanguage', lang);
-        console.log(`Language saved to storage: ${lang}`);
+        setTargetLanguage(lang);
       }
     } catch (error) {
+      setError('Failed to save language setting');
       console.error('Error saving language:', error);
     } finally {
       setIsChanging(false);
@@ -102,7 +125,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
       targetLanguage,
       setTargetLanguage: handleSetTargetLanguage,
       supportedLanguages: SUPPORTED_LANGUAGES,
-      translateText
+      translateText,
+      isLoading,
+      error
     }}>
       {children}
     </TranslationContext.Provider>
