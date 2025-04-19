@@ -8,9 +8,8 @@ import { useTranslation } from '../context/TranslationContext';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Speech from 'expo-speech';
 import { useSpeech } from '../hooks/useSpeech';
-import * as SMS from 'expo-sms';
 
-import { SERVER_IP } from '../config/config';
+import { SERVER_IP} from '../config/config';
 // import FallDetection from '../fallDetection/FallDetection';
 
 const EmergencyScreen: React.FC = () => {
@@ -77,42 +76,27 @@ const EmergencyScreen: React.FC = () => {
     translateUI();
   }, [targetLanguage, translateText]);
 
-  const makeEmergencyCall = async (phoneNumber: string) => {
+  const makeEmergencyCall = async (number: string) => {
     try {
-      await Linking.openURL(`tel:${phoneNumber}`);
+        const response = await axios.post(`http://${SERVER_IP}:8000/make-call`, {
+            to: number,
+        });
+        Alert.alert('Call Started', `Status: ${response.data.status}`);
     } catch (error) {
-      console.error('Call failed:', error);
-      Alert.alert('Call Failed', 'Unable to make the emergency call.');
+        console.error('Call failed:', error);
+        Alert.alert('Call Failed', 'Unable to place the call.');
     }
-  };
-
+};
   const sendEmergencyMessage = async (number: string, message: string) => {
     try {
-      const isAvailable = await SMS.isAvailableAsync();
-      if (!isAvailable) {
-        Alert.alert('Error', 'SMS is not available on this device');
-        return;
-      }
-
-      const { result } = await SMS.sendSMSAsync(
-        [number], // Array of phone numbers
-        message || "EMERGENCY: I need immediate help! Please contact me as soon as possible.",
-      );
-
-      // Handle the result
-      switch (result) {
-        case 'sent':
-          Alert.alert('Success', 'Emergency message was sent');
-          break;
-        case 'cancelled':
-          Alert.alert('Cancelled', 'Message sending was cancelled');
-          break;
-        default:
-          Alert.alert('Status', 'Message status unknown');
-      }
+      const response = await axios.post(`http://${SERVER_IP}:8000/send-sms`, {
+        to: number,
+        message
+      });
+      Alert.alert('Message Sent', `Status: ${response.data.status}`);
     } catch (error) {
-      console.error('SMS failed:', error);
-      Alert.alert('Error', 'Failed to send emergency message');
+      console.error('Message failed:', error);
+      Alert.alert('Message Failed', 'Unable to send the message.');
     }
   };
 
@@ -130,10 +114,12 @@ const EmergencyScreen: React.FC = () => {
   };
 
   const handleFallDetected = async () => {
+    // Stop any existing timeout
     if (alertTimeoutRef.current) {
       clearTimeout(alertTimeoutRef.current);
     }
 
+    // Speak the alert in current language
     const alertMessage = await translateText('Fall detected! Are you okay?');
     await speakText(alertMessage);
 
@@ -159,7 +145,8 @@ const EmergencyScreen: React.FC = () => {
             }
             if (contacts.length > 0) {
               await speakText(await translateText('Calling emergency contact now'));
-              makeEmergencyCall(contacts[0]);
+              const callPromises = contacts.map(contact => makeEmergencyCall(contact));
+              await Promise.all(callPromises)
             }
           },
           style: 'destructive',
@@ -168,15 +155,16 @@ const EmergencyScreen: React.FC = () => {
       { cancelable: false }
     );
 
+    // Set timeout for automatic call
     alertTimeoutRef.current = setTimeout(async () => {
-      if (contacts.length > 0) {
-        const noResponseMessage = await translateText('No response detected. Calling emergency contact.');
-        await speakText(noResponseMessage);
-        makeEmergencyCall(contacts[0]);
-      }
+      const noResponseMessage = await translateText('No response detected. Calling emergency contact.');
+      await speakText(noResponseMessage);
+      const callPromises = contacts.map(contact => makeEmergencyCall(contact));
+      await Promise.all(callPromises)
     }, 20000); // 20 seconds
   };
 
+  // Clean up timeout on component unmount
   useEffect(() => {
     return () => {
       if (alertTimeoutRef.current) {
@@ -219,35 +207,7 @@ const EmergencyScreen: React.FC = () => {
                   `What would you like to do with ${item}?`,
                   [
                     { text: 'Call', onPress: () => makeEmergencyCall(item) },
-                    { 
-                      text: 'Send Emergency SMS', 
-                      onPress: () => Alert.alert(
-                        'Select Message',
-                        'Choose an emergency message:',
-                        [
-                          { 
-                            text: 'Need Help!', 
-                            onPress: () => sendEmergencyMessage(item, 'EMERGENCY: I need help! Please contact me ASAP!')
-                          },
-                          { 
-                            text: 'Medical Emergency', 
-                            onPress: () => sendEmergencyMessage(item, 'MEDICAL EMERGENCY: Need immediate assistance! Please help!')
-                          },
-                          { 
-                            text: 'I\'ve Fallen', 
-                            onPress: () => sendEmergencyMessage(item, 'EMERGENCY: I\'ve fallen and need assistance! Please help!')
-                          },
-                          { 
-                            text: 'Custom Message', 
-                            onPress: () => sendEmergencyMessage(item, '')
-                          },
-                          { 
-                            text: 'Cancel', 
-                            style: 'cancel' 
-                          }
-                        ]
-                      )
-                    },
+                    { text: 'SMS', onPress: () => sendEmergencyMessage(item, 'Send Help') },
                     { text: 'WhatsApp', onPress: () => sendWhatsAppMessage(item, 'Hello, how are you?') },
                     { text: 'Cancel', style: 'cancel' }
                   ]

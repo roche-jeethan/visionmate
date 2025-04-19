@@ -8,6 +8,8 @@ from ultralytics import YOLO
 from dotenv import load_dotenv
 from translation import translate_text
 from pydantic import BaseModel
+from twilio_calls import router as twilio_router
+
 
 class TranslationRequest(BaseModel):
     text: str
@@ -21,6 +23,7 @@ if not SERVER_IP:
 print(f"Server running on IP: {SERVER_IP}")
 
 app = FastAPI()
+app.include_router(twilio_router)
 
 app.add_middleware(
     CORSMiddleware,
