@@ -17,6 +17,7 @@
     "expo": "~52.0.46",
     "expo-camera": "^16.0.18",
     "expo-device": "^7.0.3",
+    "expo-image-manipulator": "^13.0.6",
     "expo-local-authentication": "^15.0.2",
     "expo-speech": "^13.0.1",
     "expo-status-bar": "~2.0.1",
