@@ -1,8 +1,9 @@
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useScreenAnnounce } from '../hooks/useScreenAnnounce';
 
-export default function HomeScreen() {
+export default function LocationScreen() {
+  useScreenAnnounce('Location');
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Location Screen</Text>

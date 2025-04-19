@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import { getEmergencyContacts } from '../../services/userService';
-// import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getEmergencyContacts } from '../services/userService';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import axios from 'axios';
-// import { useTranslation } from '../../context/TranslationContext';
+import { useTranslation } from '../context/TranslationContext';
 import { useFocusEffect } from '@react-navigation/native';
-// import * as Speech from 'expo-speech';
-// import { useSpeech } from '../../hooks/useSpeech';
+import * as Speech from 'expo-speech';
+import { useSpeech } from '../hooks/useSpeech';
 import * as SMS from 'expo-sms';
 
-import { SERVER_IP } from '../../config';
+import { SERVER_IP } from '../config/config';
 // import FallDetection from '../fallDetection/FallDetection';
 
 const EmergencyScreen: React.FC = () => {
@@ -19,9 +19,9 @@ const EmergencyScreen: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // const {translateText, targetLanguage } = useTranslation();
-  // const speakText = useSpeech();
-  const [/*translations, setTranslations*/] = useState({
+  const { translateText, targetLanguage } = useTranslation();
+  const speakText = useSpeech();
+  const [translations, setTranslations] = useState({
     title: 'Emergency Services',
     description: 'Call emergency services immediately',
     call: 'Call',
@@ -29,82 +29,75 @@ const EmergencyScreen: React.FC = () => {
     login: 'Please log in to access emergency services.'
   });
 
-  // useEffect(() => {
-  //   const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
-  //     setUser(user);
-  //     if (user) {
-  //       fetchContacts();
-  //     } else {
-  //       setLoading(false);
-  //     }
-  //   });
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
+      setUser(user);
+      if (user) {
+        fetchContacts();
+      } else {
+        setLoading(false);
+      }
+    });
 
-  //   return () => unsubscribe();
-  // }, []);
+    return () => unsubscribe();
+  }, []);
 
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     fetchContacts();
-  //   }, [])
-  // );
-  // const fetchContacts = async () => {
-  //   try {
-  //     const result = await getEmergencyContacts();
-  //     setContacts(result);
-  //   } catch (error) {
-  //     console.error('Failed to fetch contacts:', error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   const translateUI = async () => {
-  //     try {
-  //       const translated = {
-  //         title: await translateText('Emergency Services'),
-  //         description: await translateText('Call emergency services immediately'),
-  //         call: await translateText('Call'),
-  //         fallback: await translateText('No contacts found. Please add from your Profile.'),
-  //         login: await translateText('Please log in to access emergency services.')
-  //       };
-  //       setTranslations(translated);
-  //     } catch (error) {
-  //       console.error('Translation error:', error);
-  //     }
-  //   };
-
-  //   translateUI();
-  // }, [targetLanguage, translateText]);
-
-  const makeEmergencyCall = async (number: string) => {
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchContacts();
+    }, [])
+  );
+  const fetchContacts = async () => {
     try {
-        const response = await axios.post(`http://${SERVER_IP}:8000/make-call`, {
-            to: number,
-        });
-        Alert.alert('Call Started', `Status: ${response.data.status}`);
+      const result = await getEmergencyContacts();
+      setContacts(result);
     } catch (error) {
-        console.error('Call failed:', error);
-        Alert.alert('Call Failed', 'Unable to place the call.');
+      console.error('Failed to fetch contacts:', error);
+    } finally {
+      setLoading(false);
     }
-};
+  };
+
+  useEffect(() => {
+    const translateUI = async () => {
+      try {
+        const translated = {
+          title: await translateText('Emergency Services'),
+          description: await translateText('Call emergency services immediately'),
+          call: await translateText('Call'),
+          fallback: await translateText('No contacts found. Please add from your Profile.'),
+          login: await translateText('Please log in to access emergency services.')
+        };
+        setTranslations(translated);
+      } catch (error) {
+        console.error('Translation error:', error);
+      }
+    };
+
+    translateUI();
+  }, [targetLanguage, translateText]);
+
+  const makeEmergencyCall = async (phoneNumber: string) => {
+    try {
+      await Linking.openURL(`tel:${phoneNumber}`);
+    } catch (error) {
+      console.error('Call failed:', error);
+      Alert.alert('Call Failed', 'Unable to make the emergency call.');
+    }
+  };
+
   const sendEmergencyMessage = async (number: string, message: string) => {
     try {
-      // First check if SMS is available
       const isAvailable = await SMS.isAvailableAsync();
       if (!isAvailable) {
         Alert.alert('Error', 'SMS is not available on this device');
         return;
       }
 
-      // Send the SMS
       const { result } = await SMS.sendSMSAsync(
         [number], // Array of phone numbers
-        message || "EMERGENCY: I need immediate help! Please contact me as soon as possible.", // Default emergency message if none provided
-        {
-          // You can add attachments here if needed
-        }
-      ); 
+        message || "EMERGENCY: I need immediate help! Please contact me as soon as possible.",
+      );
 
       // Handle the result
       switch (result) {
@@ -137,22 +130,20 @@ const EmergencyScreen: React.FC = () => {
   };
 
   const handleFallDetected = async () => {
-    // Stop any existing timeout
     if (alertTimeoutRef.current) {
       clearTimeout(alertTimeoutRef.current);
     }
 
-    // Speak the alert in current language
-    const alertMessage = await /*translateText*/('Fall detected! Are you okay?');
-    await /*speakText*/(alertMessage);
+    const alertMessage = await translateText('Fall detected! Are you okay?');
+    await speakText(alertMessage);
 
     // Show alert with countdown
     Alert.alert(
-      await /*translateText*/('Fall Detected!'),
-      await /*translateText*/('Are you okay? Automatic emergency call in 20 seconds.'),
+      await translateText('Fall Detected!'),
+      await translateText('Are you okay? Automatic emergency call in 20 seconds.'),
       [
         {
-          text: await /*translateText*/("I'm OK"),
+          text: await translateText("I'm OK"),
           onPress: () => {
             if (alertTimeoutRef.current) {
               clearTimeout(alertTimeoutRef.current);
@@ -161,15 +152,14 @@ const EmergencyScreen: React.FC = () => {
           style: 'cancel',
         },
         {
-          text: await /*translateText*/('Get Help'),
+          text: await translateText('Get Help'),
           onPress: async () => {
             if (alertTimeoutRef.current) {
               clearTimeout(alertTimeoutRef.current);
             }
             if (contacts.length > 0) {
-              await /*speakText*/(await /*translateText*/('Calling emergency contact now'));
-              const callPromises = contacts.map(contact => makeEmergencyCall(contact));
-              await Promise.all(callPromises)
+              await speakText(await translateText('Calling emergency contact now'));
+              makeEmergencyCall(contacts[0]);
             }
           },
           style: 'destructive',
@@ -178,16 +168,15 @@ const EmergencyScreen: React.FC = () => {
       { cancelable: false }
     );
 
-    // Set timeout for automatic call
     alertTimeoutRef.current = setTimeout(async () => {
-      const noResponseMessage = await /*translateText*/('No response detected. Calling emergency contact.');
-      await /*speakText*/(noResponseMessage);
-      const callPromises = contacts.map(contact => makeEmergencyCall(contact));
-      await Promise.all(callPromises)
+      if (contacts.length > 0) {
+        const noResponseMessage = await translateText('No response detected. Calling emergency contact.');
+        await speakText(noResponseMessage);
+        makeEmergencyCall(contacts[0]);
+      }
     }, 20000); // 20 seconds
   };
 
-  // Clean up timeout on component unmount
   useEffect(() => {
     return () => {
       if (alertTimeoutRef.current) {
@@ -203,7 +192,7 @@ const EmergencyScreen: React.FC = () => {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>{/*translations.login*/}</Text>
+        <Text style={styles.title}>{translations.login}</Text>
       </View>
     );
   }
@@ -211,11 +200,11 @@ const EmergencyScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* <FallDetection onFallDetected={handleFallDetected} /> */}
-      <Text style={styles.title}>{/*translations.title*/}</Text>
-      <Text style={styles.description}>{/*translations.description*/}</Text>
+      <Text style={styles.title}>{translations.title}</Text>
+      <Text style={styles.description}>{translations.description}</Text>
 
       {contacts.length === 0 ? (
-        <Text style={styles.fallback}>{/*translations.fallback*/}</Text>
+        <Text style={styles.fallback}>{translations.fallback}</Text>
       ) : (
         <FlatList
           data={contacts}
@@ -250,7 +239,7 @@ const EmergencyScreen: React.FC = () => {
                           },
                           { 
                             text: 'Custom Message', 
-                            onPress: () => sendEmergencyMessage(item, '') // Will use default message
+                            onPress: () => sendEmergencyMessage(item, '')
                           },
                           { 
                             text: 'Cancel', 
@@ -267,7 +256,7 @@ const EmergencyScreen: React.FC = () => {
             >
               <Ionicons name="call-outline" size={28} color="#007AFF" />
               <Text style={styles.serviceText}>{item}</Text>
-              <Text style={styles.callText}>{/*translations.call*/}</Text>
+              <Text style={styles.callText}>{translations.call}</Text>
             </TouchableOpacity>
           )}
         />

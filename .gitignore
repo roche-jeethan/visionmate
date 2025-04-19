@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# python stuff
+backend/__pycache__/
+
 # Expo
 .expo/
 dist/
