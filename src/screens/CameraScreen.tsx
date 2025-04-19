@@ -9,7 +9,6 @@ import { useTranslation } from '../context/TranslationContext';
 import { SERVER_IP} from '../config/config';
 import { useSpeech } from '../hooks/useSpeech';
 import { useScreenAnnounce } from '../hooks/useScreenAnnounce';
-import { BoundingBox } from '../components/BoundingBox';
 import { getObjectPosition, getPositionAnnouncement, ObjectPosition } from '../utils/positionUtils';
 
 // Add interface for detected object
@@ -305,20 +304,9 @@ export default function CameraScreen() {
                     enableTorch={isTorchOn}
                     animateShutter={false}
                 >
-                    {/* Add virtual center line */}
+                    {/* Keep the center line */}
                     <View style={styles.centerLine} />
-                    
-                    <View style={StyleSheet.absoluteFill}>
-                        {detectedObjects.map((obj, index) => (
-                            <BoundingBox
-                                key={index}
-                                bbox={obj.box}
-                                label={obj.label}
-                                confidence={obj.confidence}
-                            />
-                        ))}
-                    </View>
-                    
+                
                     <View style={styles.detectionContainer}>
                         {!isConnected && (
                             <Text style={styles.connectionStatus}>

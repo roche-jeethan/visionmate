@@ -10,6 +10,7 @@ import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
 import LocationScreen from "./src/screens/LocationScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import DescribeScreen from "./src/screens/DescribeScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
 
 LogBox.ignoreAllLogs();
@@ -18,8 +19,8 @@ const screens = [
   { name: "Settings", component: SettingsScreen, icon: "settings" },
   { name: "Emergency", component: EmergencyScreen, icon: "alert-circle" },
   { name: "Camera", component: CameraScreen, icon: "camera" },
-  { name: "Location", component: LocationScreen, icon: "location" },
   { name: "Profile", component: ProfileScreen, icon: "person" },
+  { name: "Describe", component: DescribeScreen, icon: "book" },
 ];
 
 const Tab = createMaterialTopTabNavigator();
@@ -37,8 +38,8 @@ function AppContent() {
         initialRouteName="Profile"
         screenOptions={{
           tabBarActiveTintColor: "white",
-          tabBarLabelStyle: { fontSize: 0.5 },
-          tabBarStyle: { backgroundColor: "#2f43fa", paddingTop: 50 },
+          tabBarLabelStyle: { fontSize: 0.5},  
+          tabBarStyle: { backgroundColor: "#005FCC", paddingTop: 50 },
           tabBarIndicatorStyle: { backgroundColor: "white" },
           swipeEnabled: true,
         }}
@@ -50,11 +51,7 @@ function AppContent() {
             component={screen.component}
             options={{
               tabBarIcon: ({ color }) => (
-                <Ionicons
-                  name={screen.icon as keyof (typeof Ionicons)["glyphMap"]}
-                  size={24}
-                  color={color}
-                />
+                <Ionicons name={screen.icon as keyof typeof Ionicons['glyphMap']} size={24} color={color} />
               ),
             }}
           />
