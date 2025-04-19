@@ -6,6 +6,7 @@ import numpy as np
 import base64
 from ultralytics import YOLO
 from dotenv import load_dotenv
+from orb import router as orb_router
 
 load_dotenv()
 SERVER_IP = os.getenv("SERVER_IP")
@@ -99,3 +100,6 @@ async def video_stream(websocket: WebSocket):
 @app.get("/")
 async def root():
     return {"status": "running", "server_ip": SERVER_IP}
+
+# Add the ORB router
+app.include_router(orb_router, prefix="/orb", tags=["orb"])
