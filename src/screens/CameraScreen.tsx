@@ -13,6 +13,7 @@ export default function CameraScreen() {
     const [facing, setFacing] = useState<CameraType>("back");
     const [isTorchOn, setIsTorchOn] = useState(false);
     const [isActive, setIsActive] = useState(true);
+    const [targetLanguage, setTargetLanguage] = useState('en'); 
 
     const cameraRef = useRef<CameraView>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -156,6 +157,17 @@ export default function CameraScreen() {
             closeWebSocket();
         }
     }, [isActive, connectWebSocket, closeWebSocket]);
+
+    const initializeWebSocket = () => {
+        const ws = new WebSocket(`ws://${SERVER_IP}:8000/ws/video`);
+        
+        ws.onopen = async () => {
+            await ws.send("init");
+            await ws.send(JSON.stringify({ target_lang: targetLanguage }));
+        };
+      
+        return ws;
+    };
 
     // if (!hasPermission) {
     //     return (
