@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from depth import get_depth
+from twilio_calls import router as twilio_router
 
 class TranslationRequest(BaseModel):
     text: str
@@ -24,6 +25,8 @@ if not SERVER_IP:
 print(f"Server running on IP: {SERVER_IP}")
 
 app = FastAPI()
+
+app.include_router(twilio_router)
 
 app.add_middleware(
     CORSMiddleware,
