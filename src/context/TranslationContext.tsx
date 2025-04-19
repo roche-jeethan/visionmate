@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SERVER_IP } from '../config/config';
 
@@ -45,6 +45,8 @@ const defaultTranslations = {
   }
 };
 
+const DEBOUNCE_TIME = 300;
+
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
   const [targetLanguage, setTargetLanguage] = useState<string>('en');
   const [isChanging, setIsChanging] = useState(false);
@@ -67,7 +69,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     loadLanguage();
   }, []);
 
-  const translateText = async (text: string): Promise<string> => {
+  const translateText = useCallback(async (text: string): Promise<string> => {
     if (!text || targetLanguage === 'en') {
       return text;
     }
@@ -99,7 +101,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [targetLanguage, SERVER_IP]);
 
   const handleSetTargetLanguage = async (lang: string): Promise<void> => {
     if (isChanging) return;
