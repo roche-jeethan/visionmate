@@ -394,6 +394,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E6E6FA",
   },
   title: {
     fontSize: 24,

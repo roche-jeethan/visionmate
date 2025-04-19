@@ -8,6 +8,9 @@ from ultralytics import YOLO
 from dotenv import load_dotenv
 from translation import translate_text
 from pydantic import BaseModel
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from depth import get_depth
 from twilio_calls import router as twilio_router
 
 class TranslationRequest(BaseModel):
@@ -37,6 +40,8 @@ MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
 print(f"Loading YOLO model from {MODEL_PATH}")
 model = YOLO(MODEL_PATH)
 print("Model loaded successfully")
+
+depth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="depth")
 
 async def process_frame_detection(frame, target_lang="en"):
     if frame is None:
@@ -76,6 +81,22 @@ async def process_frame_detection(frame, target_lang="en"):
         print(f" Detection error: {str(e)}")
         return None, error_msg, []
 
+async def process_frame_depth(frame):
+    if frame is None:
+        return None
+    try:
+        depth_result = await asyncio.get_event_loop().run_in_executor(
+            depth_executor,
+            get_depth,
+            frame
+        )
+        if isinstance(depth_result, dict):
+            return depth_result
+        return {"depth": depth_result, "confidence": 1.0, "method": "default"}
+    except Exception as e:
+        print(f"❌ Depth error: {str(e)}")
+        return None
+
 @app.websocket("/ws/video")
 async def video_stream(websocket: WebSocket):
     await websocket.accept()
@@ -93,10 +114,12 @@ async def video_stream(websocket: WebSocket):
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             
             results, detection_text, boxes_info = await process_frame_detection(frame, target_lang)
+            depth_result = await process_frame_depth(frame)
             
             await websocket.send_json({
                 "translated_text": detection_text,
                 "boxes": boxes_info,
+                "depth": depth_result,
                 "status": "success"
             })
             
@@ -115,3 +138,15 @@ async def translate(request: TranslationRequest):
 @app.get("/")
 async def root():
     return {"status": "running", "server_ip": SERVER_IP}
+
+@app.get("/depth")
+async def get_depth_value():
+    """API endpoint to return the estimated depth in cm."""
+    distance = get_depth()
+    if distance is None:
+        return {"error": "Failed to capture depth"}
+    return {"estimated_distance_cm": distance}
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    depth_executor.shutdown(wait=True)

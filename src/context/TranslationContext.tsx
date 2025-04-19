@@ -40,8 +40,8 @@ const defaultTranslations = {
     hi: 'दूरी'
   },
   centimeters: {
-    en: 'cm',
-    hi: 'सेंटीमीटर'
+    en: 'm',
+    hi: 'मीटर'
   }
 };
 

@@ -37,8 +37,8 @@ function AppContent() {
         initialRouteName="Profile"
         screenOptions={{
           tabBarActiveTintColor: "white",
-          tabBarLabelStyle: { fontSize: 0.5},  
-          tabBarStyle: { backgroundColor: "#005FCC", paddingTop: 50 },
+          tabBarLabelStyle: { fontSize: 0.5 },
+          tabBarStyle: { backgroundColor: "#2f43fa", paddingTop: 50 },
           tabBarIndicatorStyle: { backgroundColor: "white" },
           swipeEnabled: true,
         }}
@@ -50,7 +50,11 @@ function AppContent() {
             component={screen.component}
             options={{
               tabBarIcon: ({ color }) => (
-                <Ionicons name={screen.icon as keyof typeof Ionicons['glyphMap']} size={24} color={color} />
+                <Ionicons
+                  name={screen.icon as keyof (typeof Ionicons)["glyphMap"]}
+                  size={24}
+                  color={color}
+                />
               ),
             }}
           />

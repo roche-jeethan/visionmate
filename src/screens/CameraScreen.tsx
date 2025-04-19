@@ -19,16 +19,15 @@ export default function CameraScreen() {
     const [facing, setFacing] = useState<CameraType>("back");
     const [isTorchOn, setIsTorchOn] = useState(false);
     const [isActive, setIsActive] = useState(true);
+    const [depthValue, setDepthValue] = useState<number | null>(null);
+    const [isObjectClose, setIsObjectClose] = useState(false);
+    const PROXIMITY_THRESHOLD = 1.0 // threshold (update as needed)
     const speakText = useSpeech();
 
     const cameraRef = useRef<CameraView>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const isStreaming = useRef<boolean>(false);
     const appState = useRef(AppState.currentState);
-    const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
-    const connectionAttemptRef = useRef<number>(0);
-    const reconnectAttempts = useRef(0);
-    const maxReconnectAttempts = 5;
 
     useEffect(() => {
         requestPermission();
@@ -59,20 +58,14 @@ export default function CameraScreen() {
             return;
         }
 
-        if (reconnectAttempts.current >= maxReconnectAttempts) {
-            console.log("Max reconnection attempts reached");
-            return;
-        }
-
         console.log("Initializing WebSocket connection");
         const ws = new WebSocket(`ws://${SERVER_IP}:8000/ws/video?target=${targetLanguage}`);
 
         ws.onopen = async () => {
             console.log("WebSocket Connected");
-            reconnectAttempts.current = 0;
             wsRef.current = ws;
             setIsConnected(true);
-       
+            
             await ws.send("init");
             await ws.send(JSON.stringify({ target_lang: targetLanguage }));
             
@@ -86,6 +79,19 @@ export default function CameraScreen() {
                 if (result.translated_text) {
                     setDetectionResult(result.translated_text);
                 }
+                if (result.depth?.depth !== undefined) {
+                    setDepthValue(result.depth.depth);
+                    const isClose = result.depth.depth < PROXIMITY_THRESHOLD;
+
+                    // Trigger warning speech only once per change
+                    if (isClose && !isObjectClose) {
+                        const warningText = targetLanguage === 'hi'
+                            ? 'आप वस्तु के बहुत करीब हैं'
+                            : 'You are too close to the object';
+                        speakText(warningText);
+                    }
+                    setIsObjectClose(isClose);
+                }
             } catch (error) {
                 console.error("Parse Error:", error);
             }
@@ -96,15 +102,6 @@ export default function CameraScreen() {
             isStreaming.current = false;
             setIsConnected(false);
             wsRef.current = null;
-
-            if (reconnectAttempts.current < maxReconnectAttempts) {
-                reconnectAttempts.current++;
-                setTimeout(() => {
-                    if (!wsRef.current) {
-                        initializeWebSocket();
-                    }
-                }, 2000);
-            }
         };
 
         ws.onerror = (error) => {
@@ -219,6 +216,13 @@ export default function CameraScreen() {
                                 {detectionResult}
                             </Text>
                         )}
+                        {isObjectClose && (
+                            <Text style={styles.proximityWarning}>
+                                {targetLanguage === 'hi'
+                                    ? 'आप वस्तु के बहुत करीब हैं'
+                                    : 'You are too close to the object'}
+                            </Text>
+                        )}
                     </View>
 
                     <View style={styles.controls}>
@@ -280,6 +284,17 @@ const styles = StyleSheet.create({
         fontSize: 18,
         borderRadius: 8,
         overflow: 'hidden',
+    },
+    proximityWarning: {
+        width: '100%',
+        textAlign: 'center',
+        backgroundColor: 'rgba(255,0,0,0.7)',
+        color: '#fff',
+        padding: 15,
+        fontSize: 18,
+        borderRadius: 8,
+        marginTop: 10,
+        fontWeight: 'bold',
     },
     controls: {
         position: 'absolute',
