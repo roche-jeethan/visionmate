@@ -29,6 +29,8 @@ export default function SettingsScreen() {
   const uiStrings = {
     settings: "Settings",
   };
+  
+  type UIStringKeys = keyof typeof uiStrings;
 
   useEffect(() => {
     const translateUI = async () => {
@@ -41,7 +43,7 @@ export default function SettingsScreen() {
       try {
         const translated: Record<string, string> = {};
         for (const key in uiStrings) {
-          translated[key] = await translateText(uiStrings[key]);
+          translated[key] = await translateText(uiStrings[key as UIStringKeys]);
         }
         setTranslations(translated);
       } catch (error) {
