@@ -2,9 +2,11 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from '../context/TranslationContext';
 import { useSpeech } from '../hooks/useSpeech';
+import { useScreenAnnounce } from '../hooks/useScreenAnnounce';
 
 export default function EmergencyScreen() {
   const { translateText, isLoading } = useTranslation();
+  useScreenAnnounce('Emergency');
   const speakText = useSpeech();
   const [translatedText, setTranslatedText] = React.useState('Emergency Screen');
 

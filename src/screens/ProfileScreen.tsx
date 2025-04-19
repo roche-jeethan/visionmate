@@ -38,8 +38,11 @@ import {
 } from "firebase/firestore";
 import { MaterialIcons } from "@expo/vector-icons";
 import Collapsible from "react-native-collapsible";
+import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
 
-export default function Profile() {
+export default function ProfileScreen() {
+  useScreenAnnounce('Profile');
+  
   const auth = getAuth();
   const { targetLanguage, translateText } = useTranslation();
 
@@ -263,7 +266,6 @@ export default function Profile() {
                 user.email.split("@")[0].slice(1)}
             </Text>
             <Text style={styles.userEmail}>{user.email}</Text>
-            <Text style={styles.userPhone}>+91 XXXXXXXXXX</Text>
           </View>
           <View style={styles.avatarContainer}>
             <MaterialIcons name="account-circle" size={80} color="#007AFF" />

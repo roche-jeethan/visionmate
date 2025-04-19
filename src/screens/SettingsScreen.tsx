@@ -10,9 +10,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation, SUPPORTED_LANGUAGES } from '../context/TranslationContext';
 import { useSpeech } from '../hooks/useSpeech';
+import { useScreenAnnounce } from '../hooks/useScreenAnnounce';
 
 export default function SettingsScreen() {
   const { targetLanguage, setTargetLanguage, translateText, isLoading } = useTranslation();
+  useScreenAnnounce('Settings');
   const speakText = useSpeech();
   const [isExpanded, setIsExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));

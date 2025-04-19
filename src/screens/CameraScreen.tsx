@@ -6,16 +6,20 @@ import { useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCamera } from '../permissions/useCamera';
 import { useTranslation } from '../context/TranslationContext';
-import { SERVER_IP, WS_URL } from '../config/config';
+import { SERVER_IP} from '../config/config';
+import { useSpeech } from '../hooks/useSpeech';
+import { useScreenAnnounce } from '../hooks/useScreenAnnounce';
 
 export default function CameraScreen() {
-    const { hasPermission, requestPermission } = useCamera(); 
+    const { hasPermission, requestPermission } = useCamera();
     const { targetLanguage } = useTranslation();
+    useScreenAnnounce('Camera');
     const [detectionResult, setDetectionResult] = useState<string>("");
     const [isConnected, setIsConnected] = useState(false);
     const [facing, setFacing] = useState<CameraType>("back");
     const [isTorchOn, setIsTorchOn] = useState(false);
     const [isActive, setIsActive] = useState(true);
+    const speakText = useSpeech();
 
     const cameraRef = useRef<CameraView>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -61,7 +65,7 @@ export default function CameraScreen() {
         }
 
         console.log("Initializing WebSocket connection");
-        const ws = new WebSocket(WS_URL);
+        const ws = new WebSocket(`ws://${SERVER_IP}:8000/ws/video?target=${targetLanguage}`);
 
         ws.onopen = async () => {
             console.log("WebSocket Connected");
@@ -184,9 +188,19 @@ export default function CameraScreen() {
         }
     }, [targetLanguage]);
 
+    const handleScreenPress = async () => {
+        if (detectionResult) {
+            await speakText(detectionResult);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.camera}>
+            <TouchableOpacity 
+                style={styles.camera} 
+                onPress={handleScreenPress}
+                activeOpacity={0.9}
+            >
                 <CameraView
                     ref={cameraRef}
                     style={StyleSheet.absoluteFill}
@@ -194,16 +208,19 @@ export default function CameraScreen() {
                     enableTorch={isTorchOn}
                     animateShutter={false}
                 >
-                    {!isConnected && (
-                        <Text style={styles.connectionStatus}>
-                            Reconnecting...
-                        </Text>
-                    )}
-                    {detectionResult && (
-                        <Text style={styles.detectionText}>
-                            {detectionResult}
-                        </Text>
-                    )}
+                    <View style={styles.detectionContainer}>
+                        {!isConnected && (
+                            <Text style={styles.connectionStatus}>
+                                Reconnecting...
+                            </Text>
+                        )}
+                        {detectionResult && (
+                            <Text style={styles.detectionText}>
+                                {detectionResult}
+                            </Text>
+                        )}
+                    </View>
+
                     <View style={styles.controls}>
                         <TouchableOpacity 
                             onPress={toggleCamera}
@@ -223,7 +240,7 @@ export default function CameraScreen() {
                         </TouchableOpacity>
                     </View>
                 </CameraView>
-            </View>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 };
@@ -237,26 +254,32 @@ const styles = StyleSheet.create({
         flex: 1,
         position: 'relative',
     },
-    connectionStatus: {
+    detectionContainer: {
         position: 'absolute',
-        top: 20,
+        top: 50,
         left: 0,
         right: 0,
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    connectionStatus: {
+        width: '100%',
         textAlign: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.7)',
         color: '#fff',
         padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
     },
     detectionText: {
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
+        width: '100%',
         textAlign: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.7)',
         color: '#fff',
-        padding: 10,
-        fontSize: 16,
+        padding: 15,
+        fontSize: 18,
+        borderRadius: 8,
+        overflow: 'hidden',
     },
     controls: {
         position: 'absolute',
