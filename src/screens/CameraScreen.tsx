@@ -9,6 +9,27 @@ import { useTranslation } from '../context/TranslationContext';
 import { SERVER_IP} from '../config/config';
 import { useSpeech } from '../hooks/useSpeech';
 import { useScreenAnnounce } from '../hooks/useScreenAnnounce';
+import { getObjectPosition, getPositionAnnouncement, ObjectPosition } from '../utils/positionUtils';
+
+// Add interface for detected object
+interface DetectedObject {
+    label: string;
+    position: 'left' | 'right' | 'center';
+    confidence: number;
+    box: [number, number, number, number];
+}
+
+interface WSResponse {
+    translated_text: string;
+    depth?: {
+        depth: number;
+        confidence: number;
+        method: string;
+    };
+    detected_objects?: DetectedObject[];
+    status: 'success' | 'error';
+    error?: string;
+}
 
 export default function CameraScreen() {
     const { hasPermission, requestPermission } = useCamera();
@@ -21,6 +42,11 @@ export default function CameraScreen() {
     const [isActive, setIsActive] = useState(true);
     const [depthValue, setDepthValue] = useState<number | null>(null);
     const [isObjectClose, setIsObjectClose] = useState(false);
+    const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
+    const [lastAnnouncedPosition, setLastAnnouncedPosition] = useState<{
+        label: string;
+        position: ObjectPosition;
+    } | null>(null);
     const PROXIMITY_THRESHOLD = 1.0 // threshold (update as needed)
     const speakText = useSpeech();
 
@@ -73,17 +99,27 @@ export default function CameraScreen() {
             startStreaming();
         };
 
+        // Make sure to update your WebSocket message handler to store the boxes info
         ws.onmessage = (event) => {
             try {
                 const result = JSON.parse(event.data);
+                if (result.status === 'success' && result.boxes) {
+                    setDetectedObjects(result.boxes);
+                }
+                // ...rest of your existing WebSocket handler
+                if (result.status === 'error') {
+                    console.error("Server error:", result.error);
+                    return;
+                }
+
                 if (result.translated_text) {
                     setDetectionResult(result.translated_text);
                 }
+
                 if (result.depth?.depth !== undefined) {
                     setDepthValue(result.depth.depth);
                     const isClose = result.depth.depth < PROXIMITY_THRESHOLD;
 
-                    // Trigger warning speech only once per change
                     if (isClose && !isObjectClose) {
                         const warningText = targetLanguage === 'hi'
                             ? 'आप वस्तु के बहुत करीब हैं'
@@ -91,6 +127,30 @@ export default function CameraScreen() {
                         speakText(warningText);
                     }
                     setIsObjectClose(isClose);
+                }
+
+                if (result.detected_objects && result.detected_objects.length > 0) {
+                    setDetectedObjects(result.detected_objects);
+                    
+                    // Get the most prominent object (first one)
+                    const mainObject = result.detected_objects[0];
+                    const position = getObjectPosition(mainObject.bbox);
+                    
+                    // Announce position changes
+                    if (!lastAnnouncedPosition || 
+                        lastAnnouncedPosition.position !== position || 
+                        lastAnnouncedPosition.label !== mainObject.label) {
+                        const announcement = getPositionAnnouncement(
+                            position,
+                            mainObject.label,
+                            targetLanguage
+                        );
+                        speakText(announcement);
+                        setLastAnnouncedPosition({
+                            label: mainObject.label,
+                            position: position
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Parse Error:", error);
@@ -191,6 +251,45 @@ export default function CameraScreen() {
         }
     };
 
+    // Update the position announcement handler
+    const handlePositionAnnounce = () => {
+        console.log("Current detected objects:", detectedObjects);
+
+        if (detectedObjects && detectedObjects.length > 0) {
+            // Sort objects by confidence to get the most confident detection
+            const sortedObjects = [...detectedObjects].sort((a, b) => b.confidence - a.confidence);
+            const mainObject = sortedObjects[0];
+
+            // Create announcement message
+            let announcement: string;
+            if (targetLanguage === 'hi') {
+                switch (mainObject.position) {
+                    case 'left':
+                        announcement = `${mainObject.label} बाईं ओर है`;
+                        break;
+                    case 'right':
+                        announcement = `${mainObject.label} दाईं ओर है`;
+                        break;
+                    default:
+                        announcement = `${mainObject.label} सामने है`;
+                }
+            } else {
+                announcement = `${mainObject.label} is ${mainObject.position === 'center' ? 'in the center' : `on the ${mainObject.position}`}`;
+            }
+
+            console.log(`🗣️ Announcing: ${announcement}`);
+            console.log(`📊 Confidence: ${(mainObject.confidence * 100).toFixed(0)}%`);
+            
+            speakText(announcement);
+        } else {
+            const noObjectMessage = targetLanguage === 'hi' 
+                ? 'कोई वस्तु नहीं मिली' 
+                : 'No object detected';
+            console.log("⚠️ No objects detected");
+            speakText(noObjectMessage);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <TouchableOpacity 
@@ -205,6 +304,9 @@ export default function CameraScreen() {
                     enableTorch={isTorchOn}
                     animateShutter={false}
                 >
+                    {/* Keep the center line */}
+                    <View style={styles.centerLine} />
+                
                     <View style={styles.detectionContainer}>
                         {!isConnected && (
                             <Text style={styles.connectionStatus}>
@@ -243,6 +345,18 @@ export default function CameraScreen() {
                             />
                         </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity 
+                        style={styles.centerButton}
+                        onPress={handlePositionAnnounce}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons 
+                            name="location" 
+                            size={30} 
+                            color="white" 
+                        />
+                    </TouchableOpacity>
                 </CameraView>
             </TouchableOpacity>
         </SafeAreaView>
@@ -324,4 +438,22 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
     },
+    centerLine: {
+        position: 'absolute',
+        left: '50%',
+        top: 0,
+        bottom: 0,
+        width: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        zIndex: 1,
+    },
+    centerButton: {
+        position: 'absolute',
+        bottom: 100, // Changed from 20 to 100 to move it up
+        alignSelf: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: 15,
+        borderRadius: 30,
+        zIndex: 2,
+    }
 });
