@@ -8,6 +8,8 @@ import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
 import LocationScreen from "./src/screens/LocationScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import { LogBox } from "react-native";
+LogBox.ignoreAllLogs(true); // Ignore all log notifications
 
 const screens = [
   { name: "Settings", component: SettingsScreen, icon: "settings" },
