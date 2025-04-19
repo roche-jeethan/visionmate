@@ -42,40 +42,65 @@ depth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="depth")
 
 async def process_frame_detection(frame, target_lang="en"):
     if frame is None:
+        print("🚫 Received invalid frame")
         return None, "Invalid frame"
     
     try:
+        print("\n🔍 Starting object detection...")
         results = model(frame)[0]
         detected_objects = []
         boxes_info = []
+        
+        frame_width = frame.shape[1]  # Get frame width
+        center_x = frame_width / 2
         
         for box in results.boxes:
             class_id = int(box.cls)
             class_name = model.names[class_id]
             coords = [int(x) for x in box.xyxy[0].tolist()]
+            confidence = float(box.conf)
+            
+            # Calculate object's center x-coordinate
+            object_center_x = (coords[0] + coords[2]) / 2
+            
+            # Determine position
+            position = "center"
+            dead_zone = frame_width * 0.05  # 5% dead zone
+            
+            if object_center_x < (center_x - dead_zone):
+                position = "left"
+            elif object_center_x > (center_x + dead_zone):
+                position = "right"
             
             translated_name = translate_text(class_name, target_lang)
             
             box_info = {
                 "label": translated_name,
-                "box": coords
+                "confidence": confidence,
+                "box": coords,
+                "position": position
             }
             
             detected_objects.append(translated_name)
             boxes_info.append(box_info)
             
-            print(f"\nDetection:")
-            print(f"{{\n  \"label\": \"{translated_name}\",\n  \"box\": {coords}\n}}")
+            print(f"📦 Detected Object:")
+            print(f"  - Label: {translated_name}")
+            print(f"  - Position: {position} ({coords})")
+            print(f"  - Confidence: {confidence:.2f}")
             
         detection_text = ", ".join(set(detected_objects)) if detected_objects else "No objects detected"
         if not detected_objects:
+            print("⚠️ No objects detected in frame")
             detection_text = translate_text("No objects detected", target_lang)
+        else:
+            print(f"✅ Found {len(detected_objects)} objects")
             
         return results, detection_text, boxes_info
         
     except Exception as e:
+        print(f"❌ Detection error: {str(e)}")
         error_msg = translate_text("Detection error", target_lang)
-        print(f" Detection error: {str(e)}")
         return None, error_msg, []
 
 async def process_frame_depth(frame):
