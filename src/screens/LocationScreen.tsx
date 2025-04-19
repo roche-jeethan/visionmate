@@ -23,7 +23,6 @@ const LocationShare = () => {
   );
   
 
-  // Step 1: Get current location
   const getCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -35,12 +34,10 @@ const LocationShare = () => {
     return location.coords;
   };
 
-  // Step 2: Generate Google Maps URL
   const generateMapsLink = (lat: number, lon: number) => {
     return `https://www.google.com/maps?q=${lat},${lon}`;
   };
 
-  // Step 3: Fetch contact number from Firebase
   const getContactPhone = async (contactId: string): Promise<string> => {
     const db = getFirestore();
     
@@ -54,7 +51,6 @@ const LocationShare = () => {
     }
   };
 
-  // Step 4: Open WhatsApp with location link
   /*const sendLocationViaWhatsApp = async (phone: string, locationUrl: string) => {
     const message = `Hi! I'm here: ${locationUrl}`;
     const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
@@ -82,7 +78,6 @@ const LocationShare = () => {
     }
   };
 
-  // Step 5: Combine everything
   const handleShareLocation = async () => {
     try {
       const coords = await getCurrentLocation();
@@ -128,4 +123,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20
   }
-});
+}); 

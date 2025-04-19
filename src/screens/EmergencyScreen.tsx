@@ -10,7 +10,7 @@ import * as Speech from 'expo-speech';
 import { useSpeech } from '../hooks/useSpeech';
 
 import { SERVER_IP} from '../config/config';
-// import FallDetection from '../fallDetection/FallDetection';
+import FallDetection from '../components/fall-detect/FallDetection';
 
 const EmergencyScreen: React.FC = () => {
   const [contacts, setContacts] = useState<string[]>([]);
@@ -114,16 +114,13 @@ const EmergencyScreen: React.FC = () => {
   };
 
   const handleFallDetected = async () => {
-    // Stop any existing timeout
     if (alertTimeoutRef.current) {
       clearTimeout(alertTimeoutRef.current);
     }
 
-    // Speak the alert in current language
     const alertMessage = await translateText('Fall detected! Are you okay?');
     await speakText(alertMessage);
 
-    // Show alert with countdown
     Alert.alert(
       await translateText('Fall Detected!'),
       await translateText('Are you okay? Automatic emergency call in 20 seconds.'),
@@ -155,7 +152,6 @@ const EmergencyScreen: React.FC = () => {
       { cancelable: false }
     );
 
-    // Set timeout for automatic call
     alertTimeoutRef.current = setTimeout(async () => {
       const noResponseMessage = await translateText('No response detected. Calling emergency contact.');
       await speakText(noResponseMessage);
@@ -164,7 +160,6 @@ const EmergencyScreen: React.FC = () => {
     }, 20000); // 20 seconds
   };
 
-  // Clean up timeout on component unmount
   useEffect(() => {
     return () => {
       if (alertTimeoutRef.current) {
@@ -187,7 +182,7 @@ const EmergencyScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* <FallDetection onFallDetected={handleFallDetected} /> */}
+      {<FallDetection onFallDetected={handleFallDetected} /> }
       <Text style={styles.title}>{translations.title}</Text>
       <Text style={styles.description}>{translations.description}</Text>
 
