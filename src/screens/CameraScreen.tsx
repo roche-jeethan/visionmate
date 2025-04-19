@@ -19,6 +19,9 @@ export default function CameraScreen() {
     const [facing, setFacing] = useState<CameraType>("back");
     const [isTorchOn, setIsTorchOn] = useState(false);
     const [isActive, setIsActive] = useState(true);
+    const [depthValue, setDepthValue] = useState<number | null>(null);
+    const [isObjectClose, setIsObjectClose] = useState(false);
+    const PROXIMITY_THRESHOLD = 1.0 // threshold (update as needed)
     const speakText = useSpeech();
 
     const cameraRef = useRef<CameraView>(null);
@@ -85,6 +88,19 @@ export default function CameraScreen() {
                 const result = JSON.parse(event.data);
                 if (result.translated_text) {
                     setDetectionResult(result.translated_text);
+                }
+                if (result.depth?.depth !== undefined) {
+                    setDepthValue(result.depth.depth);
+                    const isClose = result.depth.depth < PROXIMITY_THRESHOLD;
+
+                    // Trigger warning speech only once per change
+                    if (isClose && !isObjectClose) {
+                        const warningText = targetLanguage === 'hi'
+                            ? 'आप वस्तु के बहुत करीब हैं'
+                            : 'You are too close to the object';
+                        speakText(warningText);
+                    }
+                    setIsObjectClose(isClose);
                 }
             } catch (error) {
                 console.error("Parse Error:", error);
@@ -219,6 +235,13 @@ export default function CameraScreen() {
                                 {detectionResult}
                             </Text>
                         )}
+                        {isObjectClose && (
+                            <Text style={styles.proximityWarning}>
+                                {targetLanguage === 'hi'
+                                    ? 'आप वस्तु के बहुत करीब हैं'
+                                    : 'You are too close to the object'}
+                            </Text>
+                        )}
                     </View>
 
                     <View style={styles.controls}>
@@ -280,6 +303,17 @@ const styles = StyleSheet.create({
         fontSize: 18,
         borderRadius: 8,
         overflow: 'hidden',
+    },
+    proximityWarning: {
+        width: '100%',
+        textAlign: 'center',
+        backgroundColor: 'rgba(255,0,0,0.7)',
+        color: '#fff',
+        padding: 15,
+        fontSize: 18,
+        borderRadius: 8,
+        marginTop: 10,
+        fontWeight: 'bold',
     },
     controls: {
         position: 'absolute',
