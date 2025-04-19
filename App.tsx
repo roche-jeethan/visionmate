@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Ionicons } from "@expo/vector-icons"; 
-import { LogBox } from "react-native";
 import { TranslationProvider } from "./src/context/TranslationContext";
 
 import SettingsScreen from "./src/screens/SettingsScreen";
@@ -10,6 +9,7 @@ import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
 import LocationScreen from "./src/screens/LocationScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import { LogBox } from "react-native";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
 
 LogBox.ignoreAllLogs();

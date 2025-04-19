@@ -89,7 +89,7 @@ export default function SettingsScreen() {
       </Animated.View>
     </ScrollView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
