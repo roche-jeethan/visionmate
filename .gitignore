@@ -6,6 +6,12 @@ node_modules/
 # python stuff
 backend/__pycache__/
 
+# ignore descriptors
+m:/visionmate/backend/src/descriptors/
+M:/visionmate/src/descriptors/
+
+
+
 # Expo
 .expo/
 dist/

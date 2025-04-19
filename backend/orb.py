@@ -12,7 +12,7 @@ router = APIRouter()
 mp_drawing = mp.solutions.drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
 
-DESCRIPTOR_DIR = Path("M:/visionmate/src/descriptors")
+DESCRIPTOR_DIR = Path("descriptors")
 DESCRIPTOR_DIR.mkdir(parents=True, exist_ok=True)
 
 def save_descriptors(person_name: str, descriptors_data: dict):
