@@ -22,8 +22,10 @@ face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_con
 
 class DescriptorLoader:
     def __init__(self):
-        self.descriptor_dir = Path("m:/visionmate/backend/src/descriptors")
+        # Update the path to match your system
+        self.descriptor_dir = Path("M:/visionmate/src/descriptors")
         self.saved_descriptors = {}
+        self.load_descriptors()  # Load descriptors on initialization
 
     def load_descriptors(self):
         """Load all descriptor files from the descriptors directory"""
@@ -129,13 +131,9 @@ async def process_frame_detection(frame, target_lang="en"):
         return None, "Invalid frame", []
     
     try:
-        descriptor_loader = DescriptorLoader()
-        descriptor_loader.load_descriptors()
-        
         results = model(frame)[0]
         detected_objects = []
         boxes_info = []
-        person_detected = False  # Add flag to track person detection
         
         for box in results.boxes:
             class_id = int(box.cls)
@@ -143,76 +141,69 @@ async def process_frame_detection(frame, target_lang="en"):
             confidence = float(box.conf[0])
             coords = [int(x) for x in box.xyxy[0].tolist()]
             
-            if class_name == 'person':
-                person_detected = True  # Set flag when person is detected
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results_mesh = face_mesh.process(rgb_frame)
+            if class_name == 'person' and confidence > 0.5:
+                descriptor_loader = DescriptorLoader()
+                saved_descriptors = descriptor_loader.saved_descriptors
                 
-                if results_mesh.multi_face_landmarks:
-                    for face_landmarks in results_mesh.multi_face_landmarks:
-                        h, w = frame.shape[:2]
-                        x_coordinates = [int(landmark.x * w) for landmark in face_landmarks.landmark]
-                        y_coordinates = [int(landmark.y * h) for landmark in face_landmarks.landmark]
+                if saved_descriptors:
+                    x1, y1, x2, y2 = coords
+                    person_crop = frame[y1:y2, x1:x2]
+                    
+                    if person_crop.size > 0:
+                        orb = cv2.ORB_create(nfeatures=1000)
+                        gray = cv2.cvtColor(person_crop, cv2.COLOR_BGR2GRAY)
+                        keypoints, current_descriptors = orb.detectAndCompute(gray, None)
                         
-                        padding = 20
-                        x1 = max(0, min(x_coordinates) - padding)
-                        y1 = max(0, min(y_coordinates) - padding)
-                        x2 = min(w, max(x_coordinates) + padding)
-                        y2 = min(h, max(y_coordinates) + padding)
-                        
-                        face_crop = frame[y1:y2, x1:x2]
-                        
-                        if face_crop.size > 0:
-                            orb = cv2.ORB_create(nfeatures=1000)
-                            gray_face = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
-                            keypoints, descriptors = orb.detectAndCompute(gray_face, None)
+                        if current_descriptors is not None:
+                            best_match, num_matches = match_descriptors(
+                                current_descriptors,
+                                saved_descriptors,
+                                min_matches=10
+                            )
                             
-                            # Only print descriptor info if person is detected
-                            if person_detected and descriptors is not None:
-                                print("\n🔍 Face ORB Features:")
-                                print(f"   Image size: {gray_face.shape}")
-                                print(f"   Keypoints found: {len(keypoints)}")
-                                print(f"   Descriptor shape: {descriptors.shape}")
-                                print("\n   Sample keypoints (first 3):")
-                                for idx, kp in enumerate(keypoints[:3]):
-                                    if descriptors is not None:
-                                        person_name, num_matches = match_descriptors(
-                                            descriptors, 
-                                            descriptor_loader.saved_descriptors
-                                        )
-                                        
-                                        if person_name:
-                                            print(f"\n✅ Face Recognition Result:")
-                                            print(f"   Matched Person: {person_name}")
-                                            print(f"   Confidence: {num_matches} matches")
-                                            
-                                            # Update box info with recognized person
-                                            box_info = {
-                                                "label": f"Person: {person_name}",
-                                                "matches": num_matches,
-                                                "coords": coords,
-                                                "confidence": confidence
-                                            }
-                                            boxes_info.append(box_info)
-                                            
-                                            # Draw name on frame (optional)
-                                            cv2.putText(
-                                                frame, 
-                                                person_name, 
-                                                (x1, y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 
-                                                0.9, 
-                                                (0, 255, 0), 
-                                                2
-                                            )
-                                        else:
-                                            print("\n❌ No match found for detected face")
+                            if best_match:
+                                detection_msg = f"{best_match} detected"
+                                translated_msg = await translate_text(detection_msg, target_lang)
+                                detected_objects.append(translated_msg)
+                                boxes_info.append({
+                                    "label": best_match,
+                                    "confidence": confidence,
+                                    "coords": coords,
+                                    "matches": num_matches
+                                })
+                                continue
+                
+                # If no face match or no descriptors, add as generic person
+                translated_person = await translate_text("person", target_lang)
+                detected_objects.append(translated_person)
+                boxes_info.append({
+                    "label": "person",
+                    "coords": coords,
+                    "confidence": confidence
+                })
             
-        return results, "Detection completed", boxes_info
+            else:
+                # For non-person objects
+                translated_name = await translate_text(class_name, target_lang)
+                detected_objects.append(translated_name)
+                boxes_info.append({
+                    "label": class_name,
+                    "coords": coords,
+                    "confidence": confidence
+                })
+
+        # Prepare final detection text
+        if not detected_objects:
+            detection_text = await translate_text("No objects detected", target_lang)
+        else:
+            detection_text = ", ".join(set(detected_objects))
+        
+        print(f"Detection results: {detection_text}")
+        return results, detection_text, boxes_info
 
     except Exception as e:
-        error_msg = translate_text("Detection error", target_lang)
-        print(f" Detection error: {str(e)}")
+        print(f"Detection error: {str(e)}")
+        error_msg = await translate_text("Detection error", target_lang)
         return None, error_msg, []
 
 @app.websocket("/ws/video")
