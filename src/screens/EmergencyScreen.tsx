@@ -1,14 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  FlatList,
-  ActivityIndicator,
-  Linking,
-} from "react-native";
+import {View,Text,StyleSheet,TouchableOpacity,Alert,FlatList,ActivityIndicator,Linking,} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getEmergencyContacts } from "../services/userService";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -22,7 +13,7 @@ import * as Location from "expo-location";
 import { SERVER_IP } from "../config/config";
 import FallDetection from "../components/fallDetection/FallDetection";
 
-const EmergencyScreen: React.FC = () => {
+const EmergencyScreen = () => {
   const [contacts, setContacts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -141,15 +132,11 @@ const EmergencyScreen: React.FC = () => {
       const mapLink = generateMapsLink(coords.latitude, coords.longitude);
       // Send the SMS
       const { result } = await SMS.sendSMSAsync(
-        [number], // Array of phone numbers
+        [number], 
         message ||
           `EMERGENCY: I need immediate help! Please contact me as soon as possible. ${mapLink}`, // Default emergency message if none provided
-        {
-          // You can add attachments here if needed
-        }
       );
 
-      // Handle the result
       switch (result) {
         case "sent":
           Alert.alert("Success", "Emergency message was sent");
@@ -175,9 +162,9 @@ const EmergencyScreen: React.FC = () => {
     try {
       const response = await axios.post(`http://${SERVER_IP}:8000/send-sms`, {
         to: number,
-        message
+        message: message || `EMERGENCY: I need immediate help! Please contact me as soon as possible. ${mapLink}`,
       });
-      Alert.alert('Message Sent', Status: ${response.data.status});
+      Alert.alert('Message Sent', `Status: ${response.data.status}`);
     } catch (error) {
       console.error('Message failed:', error);
       Alert.alert('Message Failed', 'Unable to send the message.');
@@ -186,13 +173,18 @@ const EmergencyScreen: React.FC = () => {
 
 
   const sendWhatsAppMessage = async (number: string, message: string) => {
+    const coords = await getCurrentLocation();
+    if (!coords) return;
+
+    const mapLink = generateMapsLink(coords.latitude, coords.longitude);
+
     try {
       const response = await axios.post(
         `http://${SERVER_IP}:8000/send-whatsapp`,
         {
           to: number,
           from: "+14155238886",
-          message,
+          message: message || `EMERGENCY: I need immediate help! Please contact me as soon as possible. ${mapLink}`,
         }
       );
       Alert.alert("WhatsApp Sent", `Status: ${response.data.status}`);
@@ -202,17 +194,14 @@ const EmergencyScreen: React.FC = () => {
     }
   };
 
-  const handleFallDetected = async () => {
-    // Stop any existing timeout
+  const handleFallDetected = async (): Promise<void> => {
     if (alertTimeoutRef.current) {
       clearTimeout(alertTimeoutRef.current);
     }
 
-    // Speak the alert in current language
     const alertMessage = await translateText("Fall detected! Are you okay?");
     await speakText(alertMessage);
 
-    // Show alert with countdown
     Alert.alert(
       await translateText("Fall Detected!"),
       await translateText(
@@ -245,15 +234,15 @@ const EmergencyScreen: React.FC = () => {
                 ""
               );
 
-              // const callPromises = contacts.map((contact) =>
-              //   makeEmergencyCall(contact)
-              // );
+              const callPromises = contacts.map((contact) =>
+                makeEmergencyCall(contact)
+              );
               const smsPromises = contacts.map((contact) =>
                 sendEmergencyMessage(contact, translatedMessage)
               );
-              // const whatsappPromises = contacts.map((contact) =>
-              //   sendWhatsAppMessage(contact, translatedMessage)
-              // );
+              const whatsappPromises = contacts.map((contact) =>
+                sendWhatsAppMessage(contact, translatedMessage)
+              );
 
               await Promise.all([
                 ...callPromises,
@@ -268,20 +257,31 @@ const EmergencyScreen: React.FC = () => {
       { cancelable: false }
     );
 
-    // Set timeout for automatic call
     alertTimeoutRef.current = setTimeout(async () => {
       const noResponseMessage = await translateText(
         "No response detected. Calling emergency contact."
       );
       await speakText(noResponseMessage);
+    
+      const translatedMessage = "";
+    
       const callPromises = contacts.map((contact) =>
         makeEmergencyCall(contact)
       );
-      await Promise.all(callPromises);
+
+      const smsPromises = contacts.map((contact) =>
+        sendEmergencyMessage(contact, translatedMessage)
+      );
+    
+      const whatsappPromises = contacts.map((contact) =>
+        sendWhatsAppMessage(contact, translatedMessage)
+      );
+    
+      await Promise.all([...callPromises, ...smsPromises, ...whatsappPromises]);
     }, 20000); // 20 seconds
   };
+    
 
-  // Clean up timeout on component unmount
   useEffect(() => {
     return () => {
       if (alertTimeoutRef.current) {
@@ -359,7 +359,7 @@ const EmergencyScreen: React.FC = () => {
                             },
                             {
                               text: "Custom Message",
-                              onPress: () => sendEmergencyMessage(item, ""), // Will use default message
+                              onPress: () => sendEmergencyMessage(item, ""),
                             },
                             {
                               text: "Cancel",
