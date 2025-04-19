@@ -26,9 +26,6 @@ export default function CameraScreen() {
     const isStreaming = useRef<boolean>(false);
     const appState = useRef(AppState.currentState);
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
-    const connectionAttemptRef = useRef<number>(0);
-    const reconnectAttempts = useRef(0);
-    const maxReconnectAttempts = 5;
 
     useEffect(() => {
         requestPermission();
@@ -56,11 +53,6 @@ export default function CameraScreen() {
     const initializeWebSocket = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             console.log("WebSocket already connected");
-            return;
-        }
-
-        if (reconnectAttempts.current >= maxReconnectAttempts) {
-            console.log("Max reconnection attempts reached");
             return;
         }
 
