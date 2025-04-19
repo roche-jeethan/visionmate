@@ -1,6 +1,6 @@
 // src/services/authService.ts
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
-import { auth } from "./firebase/config";
+import { auth } from "../../firebase/config";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEYS = {

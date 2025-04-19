@@ -6,4 +6,4 @@ const WS_URL = Platform.select({
     default: 'ws://localhost:8000/ws/video',
 });
 
-export { WS_URL };
+export { WS_URL, SERVER_IP };
