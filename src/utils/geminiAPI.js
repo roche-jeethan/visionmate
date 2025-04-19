@@ -2,7 +2,7 @@
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import * as FileSystem from 'expo-file-system';
 
-const GEMINI_API_KEY = "AIzaSyCoYQ0lz2LV2iDr6vEav7judHTW_1Am-zE";
+const GEMINI_API_KEY = "AIzaSyA1Dz-c-CfIfAkeXE2rV4oAwiUnko18blY";
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 export const describeImage = async (imageUri, targetLang = 'en') => {

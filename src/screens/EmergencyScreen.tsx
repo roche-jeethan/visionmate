@@ -278,7 +278,7 @@ const EmergencyScreen = () => {
       );
     
       await Promise.all([...callPromises, ...smsPromises, ...whatsappPromises]);
-    }, 20000); // 20 seconds
+    }, 8000); // 8 seconds
   };
     
 
@@ -398,11 +398,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#E6E6FA",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-    textAlign: "center",
+      fontSize: 30,
+      fontWeight: "bold",
+      margin: 16,
   },
   description: {
     fontSize: 16,
@@ -418,7 +416,8 @@ const styles = StyleSheet.create({
   },
   serviceButton: {
     backgroundColor: "#fff",
-    padding: 20,
+    width: 300,
+    padding: 15,
     marginBottom: 15,
     borderRadius: 10,
     alignItems: "center",
