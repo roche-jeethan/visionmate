@@ -1,6 +1,6 @@
 // screens/DescribeScreen.tsx
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet } from "react-native";
+import { SafeAreaView, View, Text, StyleSheet, Dimensions } from "react-native";
 import CameraView from "../components/CameraView";
 import { useTranslation } from "../context/TranslationContext";
 
@@ -14,11 +14,9 @@ export default function DescribeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.cameraContainer}>
-        <CameraView onImageDescribed={handleImageDescription} />
-      </View>
-    </SafeAreaView>
+    <View style={styles.container}>
+      <CameraView onImageDescribed={handleImageDescription} />
+    </View>
   );
 }
 
@@ -26,22 +24,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
-    paddingTop: 60, // Add padding for router
+    height: Dimensions.get('window').height,
+    width: Dimensions.get('window').width,
   },
   cameraContainer: {
-    flex: 0.8, // Take up 80% of the space
-    backgroundColor: 'black',
+    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   descriptionContainer: {
-    flex: 0.2, // Take up 20% of the space
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    position: 'absolute',
+    top: 80, // Below the router
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)', // Reduced opacity
     padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderRadius: 10,
+    marginHorizontal: 10,
   },
   descriptionText: {
     color: 'white',
     fontSize: 16,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
   }
 });
