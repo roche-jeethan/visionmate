@@ -4,6 +4,8 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import { Ionicons } from "@expo/vector-icons"; 
 import { LogBox } from "react-native";
 import { TranslationProvider } from "./src/context/TranslationContext";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 
 import SettingsScreen from "./src/screens/SettingsScreen";
 import EmergencyScreen from "./src/screens/EmergencyScreen";
@@ -62,8 +64,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <TranslationProvider>
-      <AppContent />
-    </TranslationProvider>
+    <GestureHandlerRootView>
+      <TranslationProvider>
+        <AppContent />
+      </TranslationProvider>
+    </GestureHandlerRootView>
   );
 }
