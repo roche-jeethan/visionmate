@@ -17,8 +17,10 @@
     "expo-camera": "^16.0.18",
     "expo-speech": "^13.0.1",
     "expo-status-bar": "~2.0.1",
+    "firebase": "^11.6.0",
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "react-native-collapsible": "^1.6.2",
     "react-native-dotenv": "^3.4.11"
   },
   "devDependencies": {
