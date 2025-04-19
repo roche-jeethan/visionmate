@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np
@@ -215,34 +215,41 @@ async def process_frame_detection(frame, target_lang="en"):
         print(f" Detection error: {str(e)}")
         return None, error_msg, []
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+@app.websocket("/ws/video")
+async def websocket_endpoint(websocket: WebSocket, target: str = "en"):
     await websocket.accept()
     try:
-        await websocket.receive_text()
-        lang_data = await websocket.receive_json()
-        target_lang = lang_data.get("target_lang", "en")
-        
         while True:
-            data = await websocket.receive_text()
-            frame_data = base64.b64decode(data)
-            np_arr = np.frombuffer(frame_data, np.uint8)
-            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            
-            results, detection_text, boxes_info = await process_frame_detection(frame, target_lang)
-            
-            
-            results, detection_text, boxes_info = await process_frame_detection(frame)
-            
-            await websocket.send_json({
-                "translated_text": detection_text,
-                "boxes": boxes_info,
-                "status": "success"
-            })
-            
-    except Exception as e:
-        print(f" Error: {str(e)}")
-        await websocket.close()
+            try:
+                data = await websocket.receive_text()
+                if not data:
+                    continue
+                    
+                frame_data = base64.b64decode(data)
+                np_arr = np.frombuffer(frame_data, np.uint8)
+                frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                
+                results, detection_text, boxes_info = await process_frame_detection(frame, target)
+                
+                await websocket.send_json({
+                    "translated_text": detection_text,
+                    "boxes": boxes_info,
+                    "status": "success"
+                })
+            except WebSocketDisconnect:
+                print("Client disconnected")
+                break
+            except Exception as e:
+                print(f"Error processing frame: {str(e)}")
+                await websocket.send_json({
+                    "error": str(e),
+                    "status": "error"
+                })
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
 
 @app.post("/translate")
 async def translate(request: TranslationRequest):
