@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Camera, CameraType, CameraCapturedPicture, CameraView as ExpoCameraView } from "expo-camera";
-import { useCameraPermissions } from 'expo-camera';
+import React, { useState, useRef } from "react";
+import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { Camera, CameraType, CameraView as ExpoCamera, useCameraPermissions} from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { describeImage } from "../utils/geminiAPI";
 import { speak } from "../utils/speech";
+import { useTranslation } from "../context/TranslationContext";
+import * as FileSystem from 'expo-file-system';
 
 interface CameraViewProps {
   onImageDescribed?: (description: string) => void;
@@ -12,111 +13,70 @@ interface CameraViewProps {
 
 export default function CameraView({ onImageDescribed }: CameraViewProps) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [description, setDescription] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const cameraRef = React.useRef<ExpoCameraView>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [description, setDescription] = useState("");
+  const cameraRef = useRef<ExpoCamera>(null);
   const [facing, setFacing] = useState<CameraType>("back");
-
-  useEffect(() => {
-    requestPermission();
-  }, []);
+  const { targetLanguage } = useTranslation();
 
   const takePicture = async () => {
     if (!cameraRef.current || isProcessing) return;
 
     try {
       setIsProcessing(true);
-      const photo = await cameraRef.current.takePictureAsync({
-        base64: true,
-        quality: 0.7,
-        skipProcessing: true
-      }) as CameraCapturedPicture;
-      setImageUri(photo.uri);
-      await processImage(photo);
+      const photo = await cameraRef.current.takePictureAsync();
+      if (!photo) return;
+      const localUri = photo.uri;
+
+      const desc = await describeImage(localUri, targetLanguage);
+      setDescription(desc);
+      onImageDescribed?.(desc);
+      await speak(desc, targetLanguage);
     } catch (error) {
-      console.error("📸 Error taking picture:", error);
-      speak("Failed to capture image");
+      console.error("Error:", error);
+      const errorMessage = targetLanguage === 'hi' 
+        ? "छवि को संसाधित करने में विफल" 
+        : "Failed to process image";
+      await speak(errorMessage, targetLanguage);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const processImage = async (photo: CameraCapturedPicture) => {
-    if (!photo.base64) {
-      console.error("🚫 No base64 image data");
-      return;
-    }
-
-    try {
-      console.log("🔍 Processing image...");
-      const desc = await describeImage(photo.base64);
-      setDescription(desc);
-      onImageDescribed?.(desc);
-      await speak(desc);
-      console.log("✅ Image processed successfully");
-    } catch (error) {
-      console.error("❌ Error processing image:", error);
-      await speak("Failed to describe image");
-    }
-  };
-
-  if (!permission?.granted) {
-    return (
-      <View style={styles.permissionContainer}>
-        <Text style={styles.permissionText}>
-          We need your permission to use the camera
-        </Text>
-        <TouchableOpacity 
-          style={styles.permissionButton}
-          onPress={requestPermission}
-        >
-          <Text style={styles.permissionButtonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (!permission?.granted) return null;
 
   return (
     <View style={styles.container}>
-      <ExpoCameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing={facing}
-        ratio="16:9"
-      >
-        <View style={styles.controlsContainer}>
-          <TouchableOpacity
-            style={styles.captureButton}
-            onPress={takePicture}
-            disabled={isProcessing}
-          >
-            <Ionicons 
-              name={isProcessing ? "hourglass" : "camera"} 
-              size={30} 
-              color="white" 
-            />
-            <Text style={styles.captureText}>
-              {isProcessing ? "Processing..." : "Describe"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.flipButton}
-            onPress={() => setFacing(current => 
-              current === "back" ? "front" : "back"
-            )}
-          >
-            <Ionicons name="camera-reverse" size={30} color="white" />
-          </TouchableOpacity>
-        </View>
-      </ExpoCameraView>
-
       {description && (
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionText}>{description}</Text>
         </View>
       )}
+      <ExpoCamera ref={cameraRef} style={styles.camera} facing={facing}>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, isProcessing && styles.buttonDisabled]}
+            onPress={takePicture}
+            disabled={isProcessing}
+          >
+            <Ionicons name="camera" size={28} color="white" />
+            <Text style={styles.buttonText}>
+              {isProcessing 
+                ? (targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing...") 
+                : (targetLanguage === 'hi' ? "विवरण" : "Describe")}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => setFacing(current => 
+              current === "back" ? "front" : "back"
+            )}
+          >
+            <Ionicons name="camera-reverse" size={28} color="white" />
+          </TouchableOpacity>
+        </View>
+      </ExpoCamera>
     </View>
   );
 }
@@ -124,65 +84,49 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
   },
   camera: {
     flex: 1,
   },
-  controlsContainer: {
-    flex: 1,
-    backgroundColor: 'transparent',
+  buttonContainer: {
+    height: 100,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    marginBottom: 30,
-  },
-  captureButton: {
+    backgroundColor: 'transparent',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 15,
-    borderRadius: 50,
-    width: 100,
-  },
-  captureText: {
-    color: 'white',
-    marginTop: 5,
-  },
-  flipButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 15,
-    borderRadius: 50,
-  },
-  descriptionContainer: {
+    paddingHorizontal: 20,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  button: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 15,
+    borderRadius: 50,
+    alignItems: 'center',
+    width: 100, // Fixed width for both buttons
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 14,
+    marginTop: 5,
+  },
+  descriptionContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     padding: 15,
     backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1,
   },
   descriptionText: {
     color: 'white',
     fontSize: 16,
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  permissionText: {
     textAlign: 'center',
-    marginBottom: 20,
-    color: 'black',
-  },
-  permissionButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 10,
-  },
-  permissionButtonText: {
-    color: 'white',
-    fontSize: 16,
   }
 });
