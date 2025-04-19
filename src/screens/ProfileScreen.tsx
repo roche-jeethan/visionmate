@@ -79,6 +79,7 @@ export default function ProfileScreen() {
     loginInError: "Login Error",
     rgSuccess: "Registered successfully",
     rgError: "Registration Error",
+    profile: "Profile",
   };
 
   // Translate UI on language change
@@ -253,6 +254,7 @@ export default function ProfileScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 25}
     >
+      <Text style={styles.title}>{translations.profile}</Text>
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
@@ -371,6 +373,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  title: {
+    fontSize: 30,
+    fontWeight: "bold",
+    margin: 16,
+    marginBottom: 0,
+  },
   loader: {
     flex: 1,
     justifyContent: "center",
@@ -378,7 +386,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#E6E6FA',
   },
   scrollContainer: {
     padding: 20,
@@ -481,7 +489,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   addButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#2f43fa",
   },
   logoutButton: {
     backgroundColor: "crimson",
@@ -520,7 +528,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   confirmButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#2f43fa",
   },
   cancelButton: {
     backgroundColor: "#666",
@@ -531,7 +539,7 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#E6E6FA",
   },
   loginTitle: {
     fontSize: 24,
@@ -550,7 +558,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     width: "100%",
-    backgroundColor: "#007AFF",
+    backgroundColor: "#2f43fa",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",

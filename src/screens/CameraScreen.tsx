@@ -28,10 +28,6 @@ export default function CameraScreen() {
     const wsRef = useRef<WebSocket | null>(null);
     const isStreaming = useRef<boolean>(false);
     const appState = useRef(AppState.currentState);
-    const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
-    const connectionAttemptRef = useRef<number>(0);
-    const reconnectAttempts = useRef(0);
-    const maxReconnectAttempts = 5;
 
     useEffect(() => {
         requestPermission();
@@ -62,20 +58,14 @@ export default function CameraScreen() {
             return;
         }
 
-        if (reconnectAttempts.current >= maxReconnectAttempts) {
-            console.log("Max reconnection attempts reached");
-            return;
-        }
-
         console.log("Initializing WebSocket connection");
         const ws = new WebSocket(`ws://${SERVER_IP}:8000/ws/video?target=${targetLanguage}`);
 
         ws.onopen = async () => {
             console.log("WebSocket Connected");
-            reconnectAttempts.current = 0;
             wsRef.current = ws;
             setIsConnected(true);
-       
+            
             await ws.send("init");
             await ws.send(JSON.stringify({ target_lang: targetLanguage }));
             
@@ -112,15 +102,6 @@ export default function CameraScreen() {
             isStreaming.current = false;
             setIsConnected(false);
             wsRef.current = null;
-
-            if (reconnectAttempts.current < maxReconnectAttempts) {
-                reconnectAttempts.current++;
-                setTimeout(() => {
-                    if (!wsRef.current) {
-                        initializeWebSocket();
-                    }
-                }, 2000);
-            }
         };
 
         ws.onerror = (error) => {
