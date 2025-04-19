@@ -113,6 +113,18 @@ const EmergencyScreen: React.FC = () => {
     }
   };
 
+  const alertAllContacts = async (spokenText: string) => {
+    await speakText(spokenText);
+  
+    const translatedMessage = await translateText('Emergency! Fall detected. Please respond immediately.');
+  
+    const callPromises = contacts.map(contact => makeEmergencyCall(contact));
+    const smsPromises = contacts.map(contact => sendEmergencyMessage(contact, translatedMessage));
+    const whatsappPromises = contacts.map(contact => sendWhatsAppMessage(contact, translatedMessage));
+  
+    await Promise.all([...callPromises, ...smsPromises, ...whatsappPromises]);
+  };
+  
   const handleFallDetected = async () => {
     if (alertTimeoutRef.current) {
       clearTimeout(alertTimeoutRef.current);
@@ -141,9 +153,7 @@ const EmergencyScreen: React.FC = () => {
               clearTimeout(alertTimeoutRef.current);
             }
             if (contacts.length > 0) {
-              await speakText(await translateText('Calling emergency contact now'));
-              const callPromises = contacts.map(contact => makeEmergencyCall(contact));
-              await Promise.all(callPromises)
+            await alertAllContacts(await translateText('Calling, sending SMS, and WhatsApp to emergency contacts now'));
             }
           },
           style: 'destructive',
@@ -153,11 +163,8 @@ const EmergencyScreen: React.FC = () => {
     );
 
     alertTimeoutRef.current = setTimeout(async () => {
-      const noResponseMessage = await translateText('No response detected. Calling emergency contact.');
-      await speakText(noResponseMessage);
-      const callPromises = contacts.map(contact => makeEmergencyCall(contact));
-      await Promise.all(callPromises)
-    }, 20000); // 20 seconds
+    await alertAllContacts(await translateText('No response detected. Calling, sending SMS, and WhatsApp to emergency contacts.'));
+    }, 20000);// 20 seconds
   };
 
   useEffect(() => {
