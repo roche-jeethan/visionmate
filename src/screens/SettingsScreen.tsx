@@ -24,13 +24,12 @@ export default function SettingsScreen() {
   const [animation] = useState(new Animated.Value(0));
   const [translatedTitle, setTranslatedTitle] = useState("Language Settings");
   const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [isTranslating, setIsTranslating] = useState(false); // ✅ FIXED
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const uiStrings = {
     settings: "Settings",
   };
 
-  // Translate UI on language change
   useEffect(() => {
     const translateUI = async () => {
       if (targetLanguage === "en") {

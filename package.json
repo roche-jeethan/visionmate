@@ -18,6 +18,7 @@
     "expo-camera": "^16.0.18",
     "expo-device": "^7.0.3",
     "expo-local-authentication": "^15.0.2",
+    "expo-sensors": "^14.0.2",
     "expo-speech": "^13.0.1",
     "expo-status-bar": "~2.0.1",
     "firebase": "^11.6.0",
