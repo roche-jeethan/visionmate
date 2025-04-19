@@ -7,9 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PinAuthProps {
   onAuthSuccess: () => void;
+  onSwitchToFingerprint: () => void;
 }
 
-export const PinAuth: React.FC<PinAuthProps> = ({ onAuthSuccess }) => {
+export const PinAuth: React.FC<PinAuthProps> = ({ onAuthSuccess, onSwitchToFingerprint }) => {
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string>('');
   const { targetLanguage } = useTranslation();
@@ -34,7 +35,6 @@ export const PinAuth: React.FC<PinAuthProps> = ({ onAuthSuccess }) => {
         const storedPin = await AsyncStorage.getItem(STORED_PIN_KEY);
         
         if (!storedPin) {
-          // First time setup
           await AsyncStorage.setItem(STORED_PIN_KEY, newPin);
           onAuthSuccess();
         } else if (storedPin === newPin) {
@@ -60,6 +60,10 @@ export const PinAuth: React.FC<PinAuthProps> = ({ onAuthSuccess }) => {
       ]} 
     />
   ));
+
+  const fingerprintText = targetLanguage === 'hi' 
+    ? 'फिंगरप्रिंट का उपयोग करें' 
+    : 'Use Fingerprint';
 
   return (
     <View style={styles.container}>
@@ -91,6 +95,17 @@ export const PinAuth: React.FC<PinAuthProps> = ({ onAuthSuccess }) => {
           </TouchableOpacity>
         ))}
       </View>
+
+      <TouchableOpacity 
+        style={styles.fingerprintButton}
+        onPress={() => {
+          speakText(fingerprintText);
+          onSwitchToFingerprint();
+        }}
+      >
+        <Ionicons name="finger-print" size={24} color="#fff" />
+        <Text style={styles.fingerprintText}>{fingerprintText}</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -154,5 +169,21 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: 28,
     color: '#fff',
+  },
+  fingerprintButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 15,
+    borderRadius: 15,
+    marginTop: 20,
+    width: width * 0.8,
+  },
+  fingerprintText: {
+    color: '#fff',
+    fontSize: 18,
+    marginLeft: 10,
+    fontWeight: '500',
   },
 });
