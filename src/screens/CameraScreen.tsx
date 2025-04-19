@@ -25,7 +25,6 @@ export default function CameraScreen() {
     const wsRef = useRef<WebSocket | null>(null);
     const isStreaming = useRef<boolean>(false);
     const appState = useRef(AppState.currentState);
-    const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         requestPermission();
@@ -61,10 +60,9 @@ export default function CameraScreen() {
 
         ws.onopen = async () => {
             console.log("WebSocket Connected");
-            reconnectAttempts.current = 0;
             wsRef.current = ws;
             setIsConnected(true);
-       
+            
             await ws.send("init");
             await ws.send(JSON.stringify({ target_lang: targetLanguage }));
             
@@ -88,15 +86,6 @@ export default function CameraScreen() {
             isStreaming.current = false;
             setIsConnected(false);
             wsRef.current = null;
-
-            if (reconnectAttempts.current < maxReconnectAttempts) {
-                reconnectAttempts.current++;
-                setTimeout(() => {
-                    if (!wsRef.current) {
-                        initializeWebSocket();
-                    }
-                }, 2000);
-            }
         };
 
         ws.onerror = (error) => {
