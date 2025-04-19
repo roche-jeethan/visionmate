@@ -3,10 +3,14 @@ import React from "react";
 import { SafeAreaView, View, Text, StyleSheet, Dimensions } from "react-native";
 import CameraView from "../components/CameraView";
 import { useTranslation } from "../context/TranslationContext";
+import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
 
 export default function DescribeScreen() {
   const { targetLanguage } = useTranslation();
   const [currentDescription, setCurrentDescription] = React.useState<string>("");
+
+  // Add screen announcement
+  useScreenAnnounce("Describe");
 
   const handleImageDescription = async (description: string) => {
     console.log("Image Description:", description);
