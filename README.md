@@ -6,28 +6,28 @@
 
 ## Features
 
-### Object Detection and Tracking
+### 1. Object Detection and Tracking
 Detects objects in real time using advanced deep learning (YOLOv8) and provides auditory feedback about their location and movement.
 
-### Distance and Depth Estimation
+### 2. Distance and Depth Estimation
 Estimates object proximity and depth to help users navigate around obstacles safely.
 
-### Multilingual Interface
+### 3. Multilingual Interface
 Supports multiple languages, enabling users to interact in their preferred language for better accessibility.
 
-### Describe Surroundings
+### 4. Describe Surroundings
 Provides a comprehensive description of the user's environment, summarizing visible objects and spatial layout.
 
-### Fall Detection
+### 5. Fall Detection
 Continuously monitors motion patterns to detect accidental falls and trigger alerts immediately.
 
-### SMS and Emergency Calling
+### 6. SMS and Emergency Calling
 In the event of danger or a fall, VisionMate automatically sends an SMS and places an emergency call using Twilio.
 
-### Location Tracking
+### 7. Location Tracking
 Continuously tracks the user’s location and shares it with emergency contacts when needed.
 
-### Biometric Authentication
+### 8. Biometric Authentication
 Secure login with FaceID and Fingerprint support ensures user data protection and easy access.
 
 ---
