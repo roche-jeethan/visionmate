@@ -5,6 +5,8 @@ node_modules/
 
 # python stuff
 backend/__pycache__/
+backend/yolov8n*
+backend/.venv
 
 # Expo
 .expo/

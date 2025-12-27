@@ -31,3 +31,8 @@ export const twilioConfig = {
 };
 
 export const serverIP = SERVER_IP;
+
+// Add validation
+if (!SERVER_IP) {
+  console.warn("⚠️ SERVER_IP is not defined in environment variables");
+}

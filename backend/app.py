@@ -87,7 +87,7 @@ async def process_frame_detection(frame, target_lang="en"):
             detected_objects.append(translated_name)
             boxes_info.append(box_info)
             
-            print(f"📦 Detected Object:")
+            print("📦 Detected Object:")
             print(f"  - Label: {translated_name}")
             print(f"  - Position: {position} ({coords})")
             print(f"  - Confidence: {confidence:.2f}")
