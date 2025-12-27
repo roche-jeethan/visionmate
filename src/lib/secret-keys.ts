@@ -1,11 +1,33 @@
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-  measurementId: process.env.FIREBASE_MEASUREMENT_ID,
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+  FIREBASE_MEASUREMENT_ID,
+  SERVER_IP,
+  TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN,
+  TWILIO_PHONE_NUMBER,
+  TWILIO_WHATSAPP_NUMBER,
+} from "@env";
+
+export const firebaseConfig = {
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
+  measurementId: FIREBASE_MEASUREMENT_ID,
 };
 
-export { firebaseConfig };
+export const twilioConfig = {
+  accountSid: TWILIO_ACCOUNT_SID,
+  authToken: TWILIO_AUTH_TOKEN,
+  phoneNumber: TWILIO_PHONE_NUMBER,
+  whatsappNumber: TWILIO_WHATSAPP_NUMBER,
+};
+
+export const serverIP = SERVER_IP;
