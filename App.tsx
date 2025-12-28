@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { Ionicons } from "@expo/vector-icons"; 
+import { Ionicons } from "@expo/vector-icons";
 import { LogBox } from "react-native";
 import { TranslationProvider } from "./src/context/TranslationContext";
 
@@ -12,6 +12,9 @@ import LocationScreen from "./src/screens/LocationScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import DescribeScreen from "./src/screens/DescribeScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
+
+import { resolveServerIP } from "./src/config/config";
+import { setServerHost } from "./src/config/runtime";
 
 LogBox.ignoreAllLogs();
 
@@ -38,7 +41,7 @@ function AppContent() {
         initialRouteName="Profile"
         screenOptions={{
           tabBarActiveTintColor: "white",
-          tabBarLabelStyle: { fontSize: 0.5},  
+          tabBarLabelStyle: { fontSize: 0.5 },
           tabBarStyle: { backgroundColor: "#005FCC", paddingTop: 50 },
           tabBarIndicatorStyle: { backgroundColor: "white" },
           swipeEnabled: true,
@@ -51,7 +54,11 @@ function AppContent() {
             component={screen.component}
             options={{
               tabBarIcon: ({ color }) => (
-                <Ionicons name={screen.icon as keyof typeof Ionicons['glyphMap']} size={24} color={color} />
+                <Ionicons
+                  name={screen.icon as keyof (typeof Ionicons)["glyphMap"]}
+                  size={24}
+                  color={color}
+                />
               ),
             }}
           />
@@ -62,6 +69,18 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
+    (async () => {
+      try {
+        const host = await resolveServerIP();
+        console.log("Resolved backend host:", host); // prints IP (no port)
+        setServerHost(host);
+      } catch (err) {
+        console.warn("Failed to resolve server IP, using fallback", err);
+      }
+    })();
+  }, []);
+
   return (
     <TranslationProvider>
       <AppContent />
