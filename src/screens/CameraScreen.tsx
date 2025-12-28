@@ -2,13 +2,13 @@ import React, { useState, useRef, useCallback } from "react";
 import {
   AppState,
   AppStateStatus,
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, CameraType, CameraPictureOptions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
