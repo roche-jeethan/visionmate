@@ -12,71 +12,13 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from depth import get_depth
 from twilio_calls import router as twilio_router
-import platform
-import subprocess
+import time
+import logging
 
 
 class TranslationRequest(BaseModel):
     text: str
     target_lang: str
-
-
-def is_intel_cpu():
-    """Check if the CPU is Intel."""
-    try:
-        if platform.system().lower() == "linux":
-            with open("/proc/cpuinfo", "r") as f:
-                content = f.read().lower()
-                return "intel" in content or "genuine intel" in content
-        elif platform.system().lower() == "windows":
-            result = subprocess.run(
-                ["wmic", "cpu", "get", "name"], capture_output=True, text=True
-            )
-            return "intel" in result.stdout.lower()
-        elif platform.system().lower() == "darwin":  # macOS
-            result = subprocess.run(
-                ["sysctl", "-n", "machdep.cpu.brand_string"],
-                capture_output=True,
-                text=True,
-            )
-            return "intel" in result.stdout.lower()
-    except Exception:
-        pass
-    return False
-
-
-def initialize_model():
-    """Initialize the optimal model based on hardware."""
-    base_path = os.path.dirname(os.path.abspath(__file__))
-
-    # Check if Intel CPU and try OpenVINO
-    if is_intel_cpu():
-        openvino_path = os.path.join(base_path, "yolov8n_openvino_model")
-        xml_file = os.path.join(openvino_path, "yolov8n.xml")
-
-        if os.path.exists(xml_file):
-            try:
-                import openvino as ov
-
-                print("⚡ Attempting to use OpenVINO model for Intel CPU...")
-
-                core = ov.Core()
-                ov_model = core.read_model(model=xml_file)
-                compiled_model = core.compile_model(ov_model, device_name="CPU")
-
-                print("✅ OpenVINO model loaded successfully")
-                return compiled_model, "openvino"
-
-            except Exception as e:
-                print(f"❌ OpenVINO failed: {e}")
-                print("🔄 Falling back to standard PyTorch model...")
-
-    # Fallback to standard YOLO
-    MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
-    print(f"🔧 Loading standard YOLO model from {MODEL_PATH}")
-    model = YOLO(MODEL_PATH)
-    print("✅ Standard YOLO model loaded successfully")
-    return model, "pytorch"
 
 
 load_dotenv()
@@ -98,204 +40,139 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize model
-model, model_type = initialize_model()
+MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
+# configure basic logging (keeps console output tidy)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
-# COCO class names for OpenVINO (since we can't access model.names)
-COCO_CLASSES = [
-    "person",
-    "bicycle",
-    "car",
-    "motorcycle",
-    "airplane",
-    "bus",
-    "train",
-    "truck",
-    "boat",
-    "traffic light",
-    "fire hydrant",
-    "stop sign",
-    "parking meter",
-    "bench",
-    "bird",
-    "cat",
-    "dog",
-    "horse",
-    "sheep",
-    "cow",
-    "elephant",
-    "bear",
-    "zebra",
-    "giraffe",
-    "backpack",
-    "umbrella",
-    "handbag",
-    "tie",
-    "suitcase",
-    "frisbee",
-    "skis",
-    "snowboard",
-    "sports ball",
-    "kite",
-    "baseball bat",
-    "baseball glove",
-    "skateboard",
-    "surfboard",
-    "tennis racket",
-    "bottle",
-    "wine glass",
-    "cup",
-    "fork",
-    "knife",
-    "spoon",
-    "bowl",
-    "banana",
-    "apple",
-    "sandwich",
-    "orange",
-    "broccoli",
-    "carrot",
-    "hot dog",
-    "pizza",
-    "donut",
-    "cake",
-    "chair",
-    "couch",
-    "potted plant",
-    "bed",
-    "dining table",
-    "toilet",
-    "tv",
-    "laptop",
-    "mouse",
-    "remote",
-    "keyboard",
-    "cell phone",
-    "microwave",
-    "oven",
-    "toaster",
-    "sink",
-    "refrigerator",
-    "book",
-    "clock",
-    "vase",
-    "scissors",
-    "teddy bear",
-    "hair drier",
-    "toothbrush",
-]
+# detection tuning (can be overridden via env)
+YOLO_CONF = float(os.getenv("YOLO_CONF", 0.25))
+YOLO_IOU = float(os.getenv("YOLO_IOU", 0.5))
+
+# stats / logging control
+_last_detection_ready_logged = False
+_last_stats_log_time = 0.0
+_STATS_LOG_INTERVAL = 1.0  # seconds - aggregate/log stats every N seconds
+_stats_acc = {"frames": 0, "total_time": 0.0}
+
+# warm up / preload model (reduces first-frame latency)
+try:
+    logger.info(f"Loading YOLO model from {MODEL_PATH}")
+    model = YOLO(MODEL_PATH)
+    # small warmup pass
+    warmup_img = np.zeros((640, 640, 3), dtype=np.uint8)
+    wstart = time.time()
+    model(warmup_img)  # warmup
+    wtime = time.time() - wstart
+    logger.info(f"Model loaded and warmed up ({wtime * 1000:.1f}ms)")
+except Exception as e:
+    logger.exception("Failed to load YOLO model")
+    raise
+
+
+# Utility: IoU and NMS (helps remove duplicate detections)
+def _calculate_iou(box1, box2):
+    x1_1, y1_1, x2_1, y2_1 = box1
+    x1_2, y1_2, x2_2, y2_2 = box2
+
+    xi1 = max(x1_1, x1_2)
+    yi1 = max(y1_1, y1_2)
+    xi2 = min(x2_1, x2_2)
+    yi2 = min(y2_1, y2_2)
+
+    if xi2 <= xi1 or yi2 <= yi1:
+        return 0.0
+
+    inter = (xi2 - xi1) * (yi2 - yi1)
+    area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
+    area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
+    union = area1 + area2 - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _non_max_suppression(dets, iou_thresh=0.5):
+    """dets: list of {class_id, confidence, bbox} -> returns filtered list"""
+    if not dets:
+        return []
+    # Sort by confidence descending
+    dets = sorted(dets, key=lambda d: d["confidence"], reverse=True)
+    keep = []
+    while dets:
+        best = dets.pop(0)
+        keep.append(best)
+        remaining = []
+        for d in dets:
+            if (
+                d["class_id"] == best["class_id"]
+                and _calculate_iou(best["bbox"], d["bbox"]) > iou_thresh
+            ):
+                # suppress
+                continue
+            remaining.append(d)
+        dets = remaining
+    return keep
+
 
 depth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="depth")
 
 
-def process_openvino_output(output, frame, conf_threshold=0.25):
-    """Process OpenVINO model output to extract bounding boxes and classes."""
-    detections = []
-
-    # OpenVINO output shape is typically [1, 84, 8400] for YOLOv8
-    # where 84 = 4 (bbox coords) + 80 (class scores)
-    output = output.squeeze()  # Remove batch dimension
-
-    if len(output.shape) == 2:
-        output = output.transpose()  # Make it [8400, 84]
-
-    frame_height, frame_width = frame.shape[:2]
-
-    for detection in output:
-        # Extract bbox coordinates and class scores
-        x_center, y_center, width, height = detection[:4]
-        class_scores = detection[4:]
-
-        # Get class with highest confidence
-        class_id = np.argmax(class_scores)
-        confidence = class_scores[class_id]
-
-        if confidence < conf_threshold:
-            continue
-
-        # Convert to corner coordinates
-        x1 = int((x_center - width / 2) * frame_width)
-        y1 = int((y_center - height / 2) * frame_height)
-        x2 = int((x_center + width / 2) * frame_width)
-        y2 = int((y_center + height / 2) * frame_height)
-
-        # Clamp coordinates
-        x1, y1 = max(0, x1), max(0, y1)
-        x2, y2 = min(frame_width, x2), min(frame_height, y2)
-
-        detections.append(
-            {
-                "class_id": class_id,
-                "confidence": float(confidence),
-                "bbox": [x1, y1, x2, y2],
-            }
-        )
-
-    return detections
-
-
 async def process_frame_detection(frame, target_lang="en"):
+    global _last_detection_ready_logged, _last_stats_log_time, _stats_acc
+
     if frame is None:
-        print("🚫 Received invalid frame")
+        logger.warning("🚫 Received invalid frame")
         return None, "Invalid frame"
 
     try:
-        print("\n🔍 Starting object detection...")
+        # Log readiness only once to avoid repetitive "starting detection" messages
+        if not _last_detection_ready_logged:
+            logger.info("🔍 Detector ready (continuous detection mode)")
+            _last_detection_ready_logged = True
 
-        if model_type == "openvino":
-            # OpenVINO inference
-            input_tensor = cv2.resize(frame, (640, 640))
-            input_tensor = input_tensor.transpose(2, 0, 1)  # HWC to CHW
-            input_tensor = np.expand_dims(input_tensor, axis=0)  # Add batch dimension
-            input_tensor = input_tensor.astype(np.float32) / 255.0  # Normalize
+        # timing
+        start_total = time.time()
 
-            output = model(input_tensor)[0]
-            detections = process_openvino_output(output, frame)
+        # Preprocess (explicit resize to model size keeps things consistent)
+        t0 = time.time()
+        img = cv2.resize(frame, (640, 640))
+        preprocess_time = time.time() - t0
 
-        else:
-            # Standard YOLO inference
-            results = model(frame)[0]
-            detections = []
-            for box in results.boxes:
-                class_id = int(box.cls)
-                class_name = model.names[class_id]
-                coords = [int(x) for x in box.xyxy[0].tolist()]
-                confidence = float(box.conf)
+        # Inference (use conf and iou params; Ultralyics applies NMS internally)
+        t1 = time.time()
+        results = model(img, conf=YOLO_CONF, iou=YOLO_IOU)[0]
+        inference_time = time.time() - t1
 
-                detections.append(
-                    {
-                        "class_id": class_id,
-                        "confidence": confidence,
-                        "bbox": coords,
-                        "class_name": class_name,
-                    }
-                )
-
-        detected_objects = []
-        boxes_info = []
+        # Postprocess - extract boxes, apply an extra NMS to be sure duplicates are removed
+        t2 = time.time()
+        detections = []
         frame_width = frame.shape[1]
         center_x = frame_width / 2
 
-        for det in detections:
-            if model_type == "openvino":
-                class_name = (
-                    COCO_CLASSES[det["class_id"]]
-                    if det["class_id"] < len(COCO_CLASSES)
-                    else "unknown"
-                )
-            else:
-                class_name = det.get("class_name", COCO_CLASSES[det["class_id"]])
+        for box in results.boxes:
+            class_id = int(box.cls)
+            coords = [int(x) for x in box.xyxy[0].tolist()]  # [x1,y1,x2,y2]
+            confidence = float(box.conf)
+            # filter by conf just in case
+            if confidence < YOLO_CONF:
+                continue
+            detections.append(
+                {"class_id": class_id, "confidence": confidence, "bbox": coords}
+            )
 
+        # Additional NMS to remove remaining duplicate boxes (use same IOU threshold)
+        detections = _non_max_suppression(detections, iou_thresh=YOLO_IOU)
+
+        boxes_info = []
+        detected_labels = []
+
+        for det in detections:
+            class_name = model.names[det["class_id"]]
             coords = det["bbox"]
             confidence = det["confidence"]
 
-            # Calculate object's center x-coordinate
             object_center_x = (coords[0] + coords[2]) / 2
-
-            # Determine position
             position = "center"
-            dead_zone = frame_width * 0.05  # 5% dead zone
-
+            dead_zone = frame_width * 0.05
             if object_center_x < (center_x - dead_zone):
                 position = "left"
             elif object_center_x > (center_x + dead_zone):
@@ -303,40 +180,48 @@ async def process_frame_detection(frame, target_lang="en"):
 
             translated_name = translate_text(class_name, target_lang)
 
-            box_info = {
-                "label": translated_name,
-                "confidence": confidence,
-                "box": coords,
-                "position": position,
-            }
+            boxes_info.append(
+                {
+                    "label": translated_name,
+                    "confidence": confidence,
+                    "box": coords,
+                    "position": position,
+                }
+            )
+            detected_labels.append(translated_name)
 
-            detected_objects.append(translated_name)
-            boxes_info.append(box_info)
+        postprocess_time = time.time() - t2
+        total_time = time.time() - start_total
 
-            print("📦 Detected Object:")
-            print(f"  - Label: {translated_name}")
-            print(f"  - Position: {position} ({coords})")
-            print(f"  - Confidence: {confidence:.2f}")
+        # accumulate stats and print aggregated stats at intervals
+        _stats_acc["frames"] += 1
+        _stats_acc["total_time"] += total_time
+        now = time.time()
+        if now - _last_stats_log_time >= _STATS_LOG_INTERVAL:
+            avg_time = _stats_acc["total_time"] / max(1, _stats_acc["frames"])
+            fps = 1.0 / avg_time if avg_time > 0 else float("inf")
+            logger.info(
+                f"⏱️  Timing (avg over {_stats_acc['frames']} frames): "
+                f"pre={preprocess_time * 1000:.1f}ms inf={inference_time * 1000:.1f}ms post={postprocess_time * 1000:.1f}ms total={avg_time * 1000:.1f}ms fps={fps:.1f}"
+            )
+            _stats_acc = {"frames": 0, "total_time": 0.0}
+            _last_stats_log_time = now
 
-        detection_text = (
-            ", ".join(set(detected_objects))
-            if detected_objects
-            else "No objects detected"
-        )
-        if not detected_objects:
-            print("⚠️ No objects detected in frame")
-            detection_text = translate_text("No objects detected", target_lang)
+        # Build detection summary text
+        if detected_labels:
+            unique_labels = sorted(set(detected_labels))
+            detection_text = ", ".join(unique_labels)
+            logger.info(
+                f"✅ Detections: {len(unique_labels)} unique -> {detection_text}"
+            )
         else:
-            print(f"✅ Found {len(detected_objects)} objects")
+            detection_text = translate_text("No objects detected", target_lang)
+            logger.debug("⚠️ No objects detected in frame")
 
-        return (
-            None,
-            detection_text,
-            boxes_info,
-        )  # Return None for results since we handle both cases
+        return results, detection_text, boxes_info
 
     except Exception as e:
-        print(f"❌ Detection error: {str(e)}")
+        logger.exception(f"❌ Detection error: {e}")
         error_msg = translate_text("Detection error", target_lang)
         return None, error_msg, []
 
