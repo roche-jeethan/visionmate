@@ -3,7 +3,10 @@ export const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER;
 
 export async function resolveServerIP(timeoutMs = 500): Promise<string> {
   const candidates = ["localhost", "127.0.0.1"];
-  if (process.env.SERVER_IP) candidates.push(process.env.SERVER_IP);
+
+  if (process.env.EXPO_PUBLIC_SERVER_IP) {
+    candidates.push(process.env.EXPO_PUBLIC_SERVER_IP);
+  }
 
   const ping = async (host: string): Promise<boolean> => {
     try {
@@ -23,15 +26,15 @@ export async function resolveServerIP(timeoutMs = 500): Promise<string> {
   for (const host of candidates) {
     if (await ping(host)) {
       console.log(`Backend reachable at ${host}:8000`);
-      return host; // return host without port
+      return host;
     }
   }
 
-  if (process.env.SERVER_IP) {
+  if (process.env.EXPO_PUBLIC_SERVER_IP) {
     console.warn(
-      `No local backend found on port 8000. Using SERVER_IP fallback: ${process.env.SERVER_IP}`
+      `No local backend found on port 8000. Using SERVER_IP fallback: ${process.env.EXPO_PUBLIC_SERVER_IP}`
     );
-    return process.env.SERVER_IP;
+    return process.env.EXPO_PUBLIC_SERVER_IP;
   }
 
   console.warn(
