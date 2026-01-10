@@ -15,7 +15,7 @@ import { useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCamera } from "../permissions/useCamera";
 import { useTranslation } from "../context/TranslationContext";
-import { serverIP } from "../lib/secret-keys";
+import { SERVER_IP } from "../config/config";
 import { useSpeech } from "../hooks/useSpeech";
 import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
 import {
@@ -99,7 +99,7 @@ export default function CameraScreen() {
 
     console.log("Initializing WebSocket connection");
     const ws = new WebSocket(
-      `ws://${serverIP}:8000/ws/video?target=${targetLanguage}`
+      `ws://${SERVER_IP}:8000/ws/video?target=${targetLanguage}`
     );
 
     ws.onopen = async () => {

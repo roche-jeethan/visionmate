@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LogBox } from "react-native";
 import { TranslationProvider } from "./src/context/TranslationContext";
 
+import { SERVER_IP } from "./src/config/config";
+
 import SettingsScreen from "./src/screens/SettingsScreen";
 import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
@@ -13,7 +15,6 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 import DescribeScreen from "./src/screens/DescribeScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
 
-import { resolveServerIP } from "./src/config/config";
 import { setServerHost } from "./src/config/runtime";
 
 LogBox.ignoreAllLogs();
@@ -72,7 +73,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const host = await resolveServerIP();
+        const host = SERVER_IP;
         console.log("Resolved backend host:", host); // prints IP (no port)
         setServerHost(host);
       } catch (err) {
