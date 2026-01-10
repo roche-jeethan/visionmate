@@ -21,9 +21,9 @@ LogBox.ignoreAllLogs();
 
 const screens = [
   { name: "Settings", component: SettingsScreen, icon: "settings" },
+  { name: "Profile", component: ProfileScreen, icon: "person" },
   { name: "Emergency", component: EmergencyScreen, icon: "alert-circle" },
   { name: "Camera", component: CameraScreen, icon: "camera" },
-  { name: "Profile", component: ProfileScreen, icon: "person" },
   { name: "Describe", component: DescribeScreen, icon: "book" },
 ];
 
@@ -39,7 +39,7 @@ function AppContent() {
   return (
     <NavigationContainer>
       <Tab.Navigator
-        initialRouteName="Profile"
+        initialRouteName="Settings"
         screenOptions={{
           tabBarActiveTintColor: "white",
           tabBarLabelStyle: { fontSize: 0.5 },
@@ -74,7 +74,7 @@ export default function App() {
     (async () => {
       try {
         const host = SERVER_IP;
-        console.log("Resolved backend host:", host); // prints IP (no port)
+        console.log("Resolved backend host:", host); 
         setServerHost(host);
       } catch (err) {
         console.warn("Failed to resolve server IP, using fallback", err);
