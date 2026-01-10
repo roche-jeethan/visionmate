@@ -79,6 +79,22 @@ Using Bun:
 bun install
 ```
 
+Using Python:
+
+```bash
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
 ### 3. Environment Variables Setup
 
 1. Copy the example environment file:
