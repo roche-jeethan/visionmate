@@ -4,7 +4,6 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    Dimensions,
 } from "react-native";
 import { CameraView, CameraType } from "expo-camera";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,25 +14,15 @@ import { useCamera } from "../permissions/useCamera";
 import { SERVER_IP } from "../config/config";
 import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
 
-interface FaceData {
-    name: string;
-    bbox: [number, number, number, number];
-    score: number;
-    confidence: number;
-}
+
 
 export default function InsightScreen() {
     useScreenAnnounce('VisionMate Insight');
     const { hasPermission, requestPermission } = useCamera();
 
     const [facing, setFacing] = useState<CameraType>("front");
-    const [detectedFaces, setDetectedFaces] = useState<FaceData[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [currentPersonName, setCurrentPersonName] = useState<string | null>(null);
-
-    const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-    const scaleX = SCREEN_WIDTH / 640;
-    const scaleY = SCREEN_HEIGHT / 640;
 
     const cameraRef = useRef<CameraView>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -88,7 +77,7 @@ export default function InsightScreen() {
             try {
                 const result = JSON.parse(event.data);
                 if (result.status === "success" && result.faces) {
-                    setDetectedFaces(result.faces);
+
                     if (result.faces.length > 0) {
                         // Prioritize the first detected face (usually the largest/most confident)
                         setCurrentPersonName(result.faces[0].name);
@@ -118,7 +107,7 @@ export default function InsightScreen() {
             initializeWebSocket();
             return () => {
                 closeWebSocket();
-                setDetectedFaces([]);
+
             };
         }, [initializeWebSocket, closeWebSocket])
     );
@@ -150,30 +139,7 @@ export default function InsightScreen() {
                     style={styles.camera}
                     facing={facing}
                     animateShutter={false}
-                >
-                    {detectedFaces.map((face, index) => (
-                        <View
-                            key={index}
-                            style={[
-                                styles.faceBox,
-                                {
-                                    left: face.bbox[0] * scaleX,
-                                    top: face.bbox[1] * scaleY,
-                                    width: (face.bbox[2] - face.bbox[0]) * scaleX,
-                                    height: (face.bbox[3] - face.bbox[1]) * scaleY,
-                                    borderColor: face.name !== "Unknown" ? "#00FF00" : "#FF0000",
-                                },
-                            ]}
-                        >
-                            <Text style={[
-                                styles.faceName,
-                                { backgroundColor: face.name !== "Unknown" ? "#00FF00" : "#FF0000" }
-                            ]}>
-                                {face.name} ({Math.round(face.score * 100)}%)
-                            </Text>
-                        </View>
-                    ))}
-                </CameraView>
+                />
 
                 <TouchableOpacity
                     style={styles.flipButton}
@@ -249,22 +215,7 @@ const styles = StyleSheet.create({
         padding: 12,
         borderRadius: 30,
     },
-    faceBox: {
-        position: 'absolute',
-        borderWidth: 2,
-        zIndex: 10,
-    },
-    faceName: {
-        color: 'white',
-        fontSize: 12,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        position: 'absolute',
-        top: -20,
-        left: 0,
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
+
     text: {
         color: "white",
         fontSize: 16,
