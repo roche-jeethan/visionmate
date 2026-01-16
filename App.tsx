@@ -12,8 +12,9 @@ import LocationScreen from "./src/screens/LocationScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import DescribeScreen from "./src/screens/DescribeScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
+import { SERVER_IP } from "./src/config/config"
 
-import { resolveServerIP } from "./src/config/config";
+
 import { setServerHost } from "./src/config/runtime";
 
 LogBox.ignoreAllLogs();
@@ -72,9 +73,8 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const host = await resolveServerIP();
-        console.log("Resolved backend host:", host); // prints IP (no port)
-        setServerHost(host);
+        console.log("Resolved backend host:", SERVER_IP); // prints IP (no port)
+        setServerHost(SERVER_IP);
       } catch (err) {
         console.warn("Failed to resolve server IP, using fallback", err);
       }

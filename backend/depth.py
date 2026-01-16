@@ -1,67 +1,87 @@
 import cv2
 import torch
 import numpy as np
-from collections import deque
 from transformers import pipeline
 from PIL import Image
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-pipe = pipeline(
-    task="depth-estimation", 
-    model="depth-anything/Depth-Anything-V2-Small-hf", 
-    device=0 if device == "cuda" else -1
+# -----------------------------
+# Camera parameters
+# -----------------------------
+FOCAL_LENGTH_PX = 850     # calibrate for your phone
+PERSON_HEIGHT_M = 1.7
+
+# -----------------------------
+# Load Depth Anything once
+# -----------------------------
+device = 0 if torch.cuda.is_available() else -1
+print("🧠 Loading Depth Anything V2...")
+
+depth_pipe = pipeline(
+    task="depth-estimation",
+    model="depth-anything/Depth-Anything-V2-Small-hf",
+    device=device
 )
 
+print("✅ Depth model ready")
 
-FOCAL_LENGTH = 900  
-KNOWN_OBJECT_HEIGHT = 1.725  
-PIXEL_HEIGHT = 1360  
+# -----------------------------
+# Main function used by FastAPI
+# -----------------------------
+def get_depth(frame, boxes):
+    """
+    frame: OpenCV BGR image
+    boxes: [{ "label": str, "box": [x1,y1,x2,y2] }]
+    """
 
+    if frame is None or boxes is None:
+        return None
 
-distance_buffer = deque(maxlen=10)
+    h, w = frame.shape[:2]
 
-def get_depth(frame, detected_objects=None):
-   
-    if frame is None:
-        return {"depth": None, "error": "No frame provided"}
+    # Convert to RGB → PIL
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    pil_img = Image.fromarray(rgb)
 
-    try:
-        
-        image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    # Run depth model
+    depth = depth_pipe(pil_img)["depth"]
+    depth_map = np.array(depth, dtype=np.float32)
+    depth_map = cv2.resize(depth_map, (w, h))
 
-        
-        with torch.no_grad():
-            depth_output = pipe(image)["depth"]
+    # Normalize depth for stability
+    depth_norm = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
 
-        depth_np = np.array(depth_output)
+    results = []
 
-        
-        h, w = depth_np.shape
-        center_depth_value = depth_np[h // 2, w // 2]
+    for obj in boxes:
+        x1, y1, x2, y2 = obj["box"]
+        label = obj["label"]
 
-       
-        estimated_distance_cm = (FOCAL_LENGTH * KNOWN_OBJECT_HEIGHT) / (center_depth_value * PIXEL_HEIGHT + 1e-6) * 100
+        box_height = y2 - y1
+        if box_height < 30:
+            continue
 
-        
-        distance_buffer.append(estimated_distance_cm)
-        smoothed_distance = np.mean(distance_buffer)
-        rounded_distance = round(smoothed_distance, 1)
+        # Object real height estimate
+        if label.lower() == "person":
+            H = PERSON_HEIGHT_M
+        else:
+            H = 1.5   # generic object height
 
+        # Geometry-based distance
+        distance_geom = (FOCAL_LENGTH_PX * H) / box_height
 
-        
-        response = {
-            "depth": rounded_distance,
-            "confidence": min(len(distance_buffer) / 10.0, 1.0),
-            "unit": "cm",
-            "method": "depth-anything-v2"
-        }
+        # Depth-based correction
+        roi = depth_norm[y1:y2, x1:x2]
+        if roi.size == 0:
+            continue
 
-        return response
+        depth_factor = float(np.median(roi))
 
-    except Exception as e:
-        print(f"Depth estimation error: {str(e)}")
-        return {"depth": None, "error": str(e)}
+        # Final fused metric distance
+        distance_m = distance_geom * (0.5 + depth_factor)
 
-    finally:
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        results.append({
+            "label": label,
+            "distance_m": round(float(distance_m), 2)
+        })
+
+    return results

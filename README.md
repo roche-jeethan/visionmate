@@ -106,7 +106,7 @@ cp .env.example .env
 2. Fill in your credentials in `.env`:
 
 ```env
-SERVER_IP=your_server_ip
+EXPO_PUBLIC_SERVER_IP=your_server_ip
 
 # Firebase Configuration
 FIREBASE_API_KEY=your_firebase_api_key

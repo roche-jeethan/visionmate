@@ -22,11 +22,11 @@ class TranslationRequest(BaseModel):
 
 
 load_dotenv()
-SERVER_IP = os.getenv("SERVER_IP")
-if not SERVER_IP:
-    raise ValueError("SERVER_IP not found in environment variables")
+EXPO_PUBLIC_SERVER_IP = os.getenv("EXPO_PUBLIC_SERVER_IP")
+if not EXPO_PUBLIC_SERVER_IP:
+    raise ValueError("EXPO_PUBLIC_SERVER_IP not found in environment variables")
 
-print(f"Server running on IP: {SERVER_IP}")
+print(f"Server running on IP: {EXPO_PUBLIC_SERVER_IP}")
 
 app = FastAPI()
 
@@ -70,58 +70,14 @@ except Exception as e:
     raise
 
 
-# Utility: IoU and NMS (helps remove duplicate detections)
-def _calculate_iou(box1, box2):
-    x1_1, y1_1, x2_1, y2_1 = box1
-    x1_2, y1_2, x2_2, y2_2 = box2
-
-    xi1 = max(x1_1, x1_2)
-    yi1 = max(y1_1, y1_2)
-    xi2 = min(x2_1, x2_2)
-    yi2 = min(y2_1, y2_2)
-
-    if xi2 <= xi1 or yi2 <= yi1:
-        return 0.0
-
-    inter = (xi2 - xi1) * (yi2 - yi1)
-    area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
-    area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
-    union = area1 + area2 - inter
-    return inter / union if union > 0 else 0.0
-
-
-def _non_max_suppression(dets, iou_thresh=0.5):
-    """dets: list of {class_id, confidence, bbox} -> returns filtered list"""
-    if not dets:
-        return []
-    # Sort by confidence descending
-    dets = sorted(dets, key=lambda d: d["confidence"], reverse=True)
-    keep = []
-    while dets:
-        best = dets.pop(0)
-        keep.append(best)
-        remaining = []
-        for d in dets:
-            if (
-                d["class_id"] == best["class_id"]
-                and _calculate_iou(best["bbox"], d["bbox"]) > iou_thresh
-            ):
-                # suppress
-                continue
-            remaining.append(d)
-        dets = remaining
-    return keep
-
-
-depth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="depth")
+depth_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="depth")
 
 
 async def process_frame_detection(frame, target_lang="en"):
     global _last_detection_ready_logged, _last_stats_log_time, _stats_acc
 
     if frame is None:
-        logger.warning("🚫 Received invalid frame")
-        return None, "Invalid frame"
+        return None, "Invalid frame", []
 
     try:
         # Log readiness only once to avoid repetitive "starting detection" messages
@@ -134,51 +90,51 @@ async def process_frame_detection(frame, target_lang="en"):
 
         # Preprocess (explicit resize to model size keeps things consistent)
         t0 = time.time()
+        logger.info(f"📸 Frame shape: {frame.shape}")
         img = cv2.resize(frame, (640, 640))
         preprocess_time = time.time() - t0
 
         # Inference (use conf and iou params; Ultralyics applies NMS internally)
         t1 = time.time()
+        logger.info("🧠 Running YOLO inference")
         results = model(img, conf=YOLO_CONF, iou=YOLO_IOU)[0]
         inference_time = time.time() - t1
 
-        # Postprocess - extract boxes, apply an extra NMS to be sure duplicates are removed
+        # Postprocess - extract boxes
         t2 = time.time()
-        detections = []
-        frame_width = frame.shape[1]
-        center_x = frame_width / 2
-
-        for box in results.boxes:
-            class_id = int(box.cls)
-            coords = [int(x) for x in box.xyxy[0].tolist()]  # [x1,y1,x2,y2]
-            confidence = float(box.conf)
-            # filter by conf just in case
-            if confidence < YOLO_CONF:
-                continue
-            detections.append(
-                {"class_id": class_id, "confidence": confidence, "bbox": coords}
-            )
-
-        # Additional NMS to remove remaining duplicate boxes (use same IOU threshold)
-        detections = _non_max_suppression(detections, iou_thresh=YOLO_IOU)
-
         boxes_info = []
         detected_labels = []
 
-        for det in detections:
-            class_name = model.names[det["class_id"]]
-            coords = det["bbox"]
-            confidence = det["confidence"]
+        for box in results.boxes:
+            class_id = int(box.cls)
+            class_name = model.names[class_id]
+            coords = [int(x) for x in box.xyxy[0].tolist()]
+            confidence = float(box.conf)
+
+            # Clamp coordinates to frame boundaries (640x640)
+            coords = [
+                max(0, min(coords[0], 639)),
+                max(0, min(coords[1], 639)),
+                max(0, min(coords[2], 639)),
+                max(0, min(coords[3], 639))
+            ]
 
             object_center_x = (coords[0] + coords[2]) / 2
-            position = "center"
-            dead_zone = frame_width * 0.05
-            if object_center_x < (center_x - dead_zone):
+            
+            # Spatial Classification (Direction) per user request
+            model_width = 640
+            if object_center_x < (model_width * 0.33):
                 position = "left"
-            elif object_center_x > (center_x + dead_zone):
+            elif object_center_x > (model_width * 0.66):
                 position = "right"
+            else:
+                position = "center"
 
-            translated_name = translate_text(class_name, target_lang)
+            # Translation with local per-frame cache for speed
+            if target_lang == "en":
+                translated_name = class_name
+            else:
+                translated_name = translate_text(class_name, target_lang)
 
             boxes_info.append(
                 {
@@ -211,9 +167,6 @@ async def process_frame_detection(frame, target_lang="en"):
         if detected_labels:
             unique_labels = sorted(set(detected_labels))
             detection_text = ", ".join(unique_labels)
-            logger.info(
-                f"✅ Detections: {len(unique_labels)} unique -> {detection_text}"
-            )
         else:
             detection_text = translate_text("No objects detected", target_lang)
             logger.debug("⚠️ No objects detected in frame")
@@ -226,47 +179,62 @@ async def process_frame_detection(frame, target_lang="en"):
         return None, error_msg, []
 
 
-async def process_frame_depth(frame):
-    if frame is None:
-        return None
+async def process_frame_depth(frame, boxes):
+    if frame is None or not boxes:
+        return []
     try:
         depth_result = await asyncio.get_event_loop().run_in_executor(
-            depth_executor, get_depth, frame
+            depth_executor, get_depth, frame, boxes
         )
-        if isinstance(depth_result, dict):
-            return depth_result
-        return {"depth": depth_result, "confidence": 1.0, "method": "default"}
+        return depth_result if depth_result else []
     except Exception as e:
-        print(f"❌ Depth error: {str(e)}")
-        return None
+        logger.error(f"❌ Depth error: {str(e)}")
+        return []
+
 
 
 @app.websocket("/ws/video")
 async def video_stream(websocket: WebSocket):
     await websocket.accept()
-    print(f" WebSocket connection established on {SERVER_IP}")
+    print(f" WebSocket connection established on {EXPO_PUBLIC_SERVER_IP}")
 
     try:
-        await websocket.receive_text()
-        lang_data = await websocket.receive_json()
-        target_lang = lang_data.get("target_lang", "en")
+        # Robust initialization: receive target language once as JSON
+        init_msg = await websocket.receive_json()
+        target_lang = init_msg.get("target_lang", "en")
+        logger.info(f"🌐 WebSocket started with language: {target_lang}")
 
         while True:
             data = await websocket.receive_text()
-            frame_data = base64.b64decode(data)
-            np_arr = np.frombuffer(frame_data, np.uint8)
-            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            
+            try:
+                # Expo Camera base64 decoding with padding fix
+                jpg_bytes = base64.b64decode(data + "===")
+                np_arr = np.frombuffer(jpg_bytes, dtype=np.uint8)
+                frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+                if frame is None:
+                    logger.warning("⚠️ Frame decode failed")
+                    continue
+            except Exception as e:
+                logger.error(f"❌ Decode error: {e}")
+                continue
 
             results, detection_text, boxes_info = await process_frame_detection(
                 frame, target_lang
             )
-            depth_result = await process_frame_depth(frame)
+            
+            # Only run depth if we found objects, to save CPU
+            depth_result = []
+            if boxes_info:
+                depth_result = await process_frame_depth(frame, boxes_info)
 
             await websocket.send_json(
                 {
                     "translated_text": detection_text,
                     "boxes": boxes_info,
                     "depth": depth_result,
+                    "count": len(boxes_info),
                     "status": "success",
                 }
             )
@@ -287,16 +255,13 @@ async def translate(request: TranslationRequest):
 
 @app.get("/")
 async def root():
-    return {"status": "running", "server_ip": SERVER_IP}
+    return {"status": "running", "server_ip": EXPO_PUBLIC_SERVER_IP}
 
 
 @app.get("/depth")
 async def get_depth_value():
     """API endpoint to return the estimated depth in cm."""
-    distance = get_depth()
-    if distance is None:
-        return {"error": "Failed to capture depth"}
-    return {"estimated_distance_cm": distance}
+    return {"error": "Endpoint disabled. Use WebSocket for real-time depth."}
 
 
 @app.on_event("shutdown")

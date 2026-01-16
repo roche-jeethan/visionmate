@@ -90,7 +90,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
       if (!response.ok) {
         throw new Error(`Translation failed: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       return data.translated_text || text;
     } catch (error) {
@@ -105,7 +105,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
 
   const handleSetTargetLanguage = async (lang: string): Promise<void> => {
     if (isChanging) return;
-    
+
     setIsChanging(true);
     setError(null);
 

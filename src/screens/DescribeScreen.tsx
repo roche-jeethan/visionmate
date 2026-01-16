@@ -1,9 +1,12 @@
-// screens/DescribeScreen.tsx
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, StyleSheet, Dimensions } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import CameraView from "../components/CameraView";
 import { useTranslation } from "../context/TranslationContext";
 import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
+import { useSpeech } from "../hooks/useSpeech";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 
 export default function DescribeScreen() {
   const { targetLanguage } = useTranslation();
@@ -11,6 +14,20 @@ export default function DescribeScreen() {
 
   // Add screen announcement
   useScreenAnnounce("Describe");
+  const speakText = useSpeech();
+
+  const [hasAnnouncedInstruction, setHasAnnouncedInstruction] = React.useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasAnnouncedInstruction) {
+        speakText(targetLanguage === "hi"
+          ? "कैमरा बदलने के लिए दो बार टैप करें"
+          : "Double tap to switch the camera");
+        setHasAnnouncedInstruction(true);
+      }
+    }, [targetLanguage, hasAnnouncedInstruction])
+  );
 
   const handleImageDescription = async (description: string) => {
     console.log("Image Description:", description);
@@ -18,9 +35,11 @@ export default function DescribeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <CameraView onImageDescribed={handleImageDescription} />
-    </View>
+    <GestureHandlerRootView style={styles.container}>
+      <View style={styles.container}>
+        <CameraView onImageDescribed={handleImageDescription} />
+      </View>
+    </GestureHandlerRootView>
   );
 }
 

@@ -1,11 +1,12 @@
-export const SERVER_IP = process.env.SERVER_IP;
+export const SERVER_IP = process.env.EXPO_PUBLIC_SERVER_IP;
 export const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER;
+export const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
 export async function resolveServerIP(timeoutMs = 500): Promise<string> {
   const candidates = ["localhost", "127.0.0.1"];
 
-  if (process.env.EXPO_PUBLIC_SERVER_IP) {
-    candidates.push(process.env.EXPO_PUBLIC_SERVER_IP);
+  if (process.env.SERVER_IP) {
+    candidates.push(process.env.SERVER_IP);
   }
 
   const ping = async (host: string): Promise<boolean> => {
@@ -30,11 +31,11 @@ export async function resolveServerIP(timeoutMs = 500): Promise<string> {
     }
   }
 
-  if (process.env.EXPO_PUBLIC_SERVER_IP) {
+  if (SERVER_IP) {
     console.warn(
-      `No local backend found on port 8000. Using SERVER_IP fallback: ${process.env.EXPO_PUBLIC_SERVER_IP}`
+      `No local backend found on port 8000. Using SERVER_IP fallback: ${SERVER_IP}`
     );
-    return process.env.EXPO_PUBLIC_SERVER_IP;
+    return SERVER_IP;
   }
 
   console.warn(
