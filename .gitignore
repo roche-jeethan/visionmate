@@ -48,3 +48,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+
+# FaceDB
+faces_db

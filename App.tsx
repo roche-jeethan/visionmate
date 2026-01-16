@@ -11,7 +11,7 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
 import LocationScreen from "./src/screens/LocationScreen";
-import ProfileScreen from "./src/screens/ProfileScreen";
+import InsightScreen from "./src/screens/InsightScreen";
 import DescribeScreen from "./src/screens/DescribeScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
 
@@ -21,7 +21,7 @@ LogBox.ignoreAllLogs();
 
 const screens = [
   { name: "Settings", component: SettingsScreen, icon: "settings" },
-  { name: "Profile", component: ProfileScreen, icon: "person" },
+  { name: "Insight", component: InsightScreen, icon: "eye" },
   { name: "Emergency", component: EmergencyScreen, icon: "alert-circle" },
   { name: "Camera", component: CameraScreen, icon: "camera" },
   { name: "Describe", component: DescribeScreen, icon: "book" },
@@ -74,7 +74,7 @@ export default function App() {
     (async () => {
       try {
         const host = SERVER_IP;
-        console.log("Resolved backend host:", host); 
+        console.log("Resolved backend host:", host);
         setServerHost(host);
       } catch (err) {
         console.warn("Failed to resolve server IP, using fallback", err);

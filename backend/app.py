@@ -302,3 +302,56 @@ async def get_depth_value():
 @app.on_event("shutdown")
 async def shutdown_event():
     depth_executor.shutdown(wait=True)
+
+# Initialize Face Recognition Engine
+from vision_mate_insight import VisionMateInsight
+try:
+    face_engine = VisionMateInsight(db_path="../faces_db")
+    logger.info("Face recognition engine initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize face recognition engine: {e}")
+    face_engine = None
+
+@app.websocket("/ws/face")
+async def face_stream(websocket: WebSocket):
+    await websocket.accept()
+    print(f"Face WebSocket connection established on {SERVER_IP}")
+
+    try:
+        if face_engine is None:
+            await websocket.close(code=1011, reason="Face engine not initialized")
+            return
+
+        while True:
+            data = await websocket.receive_text()
+            try:
+                frame_data = base64.b64decode(data)
+                np_arr = np.frombuffer(frame_data, np.uint8)
+                frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+                if frame is None:
+                    continue
+
+                # Resize to 640x640 to match frontend scaling
+                frame = cv2.resize(frame, (640, 640))
+
+                # Process frame for faces
+                faces = await asyncio.get_event_loop().run_in_executor(
+                    None, face_engine.process_frame, frame
+                )
+
+                await websocket.send_json({
+                    "faces": faces,
+                    "status": "success"
+                })
+            except Exception as e:
+                print(f"Frame processing error: {e}")
+                await websocket.send_json({"status": "error", "message": str(e)})
+
+    except Exception as e:
+        print(f"Face WebSocket Error: {str(e)}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
