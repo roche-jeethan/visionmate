@@ -303,11 +303,10 @@ export default function CameraScreen() {
             announcement = `${mainObject.label} सामने है`;
         }
       } else {
-        announcement = `${mainObject.label} is ${
-          mainObject.position === "center"
+        announcement = `${mainObject.label} is ${mainObject.position === "center"
             ? "in the center"
             : `on the ${mainObject.position}`
-        }`;
+          }`;
       }
 
       console.log(`🗣️ Announcing: ${announcement}`);

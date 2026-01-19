@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
-import { Camera, CameraType, CameraView as ExpoCamera, useCameraPermissions} from "expo-camera";
+import { Camera, CameraType, CameraView as ExpoCamera, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { describeImage } from "../utils/geminiAPI";
 import { speak } from "../utils/speech";
@@ -34,8 +34,8 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
       await speak(desc, targetLanguage);
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage = targetLanguage === 'hi' 
-        ? "छवि को संसाधित करने में विफल" 
+      const errorMessage = targetLanguage === 'hi'
+        ? "छवि को संसाधित करने में विफल"
         : "Failed to process image";
       await speak(errorMessage, targetLanguage);
     } finally {
@@ -61,15 +61,15 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
           >
             <Ionicons name="camera" size={28} color="white" />
             <Text style={styles.buttonText}>
-              {isProcessing 
-                ? (targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing...") 
+              {isProcessing
+                ? (targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing...")
                 : (targetLanguage === 'hi' ? "विवरण" : "Describe")}
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={styles.button}
-            onPress={() => setFacing(current => 
+            onPress={() => setFacing(current =>
               current === "back" ? "front" : "back"
             )}
           >

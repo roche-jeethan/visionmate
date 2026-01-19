@@ -22,7 +22,7 @@ class TranslationRequest(BaseModel):
 
 
 load_dotenv()
-SERVER_IP = os.getenv("SERVER_IP")
+SERVER_IP = os.getenv("EXPO_PUBLIC_SERVER_IP")
 if not SERVER_IP:
     raise ValueError("SERVER_IP not found in environment variables")
 
