@@ -51,10 +51,17 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
 
     try {
       setIsProcessing(true);
-      const photo = await cameraRef.current.takePictureAsync();
+      const photo = await cameraRef.current.takePictureAsync({
+        base64: true,
+        quality: 0.5,
+        skipProcessing: true,
+      });
       if (!photo) return;
 
-      const desc = await describeImage(photo.uri, targetLanguage);
+      console.log("📸 Describe Photo keys:", Object.keys(photo));
+      console.log("📸 Base64 exists:", !!photo.base64);
+
+      const desc = await describeImage(photo.base64 || photo.uri, targetLanguage);
       setDescription(desc);
       onImageDescribed?.(desc);
       await speak(desc, targetLanguage);

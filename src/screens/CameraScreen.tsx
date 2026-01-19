@@ -107,7 +107,7 @@ export default function CameraScreen() {
     const subscription = LightSensor.addListener(({ illuminance }) => {
       // Threshold for "darkness" (e.g. < 5 lux)
       // Only turn ON if not already on
-      if (illuminance < 5) {
+      if (illuminance < 10) {
         setIsTorchOn((prev) => {
           if (!prev) {
             speakText(targetLanguage === "hi" ? "फ्लैशलाइट चालू कर रहा हूँ" : "Turning on the torch");
@@ -366,11 +366,16 @@ export default function CameraScreen() {
           base64: true,
           quality: 0.5,
           shutterSound: false,
+          skipProcessing: true,
         };
 
         // Mark as waiting BEFORE taking the picture to be safe
         isWaitingForResponse.current = true;
         const photo = await cameraRef.current.takePictureAsync(pictureOptions);
+
+        // Defensive Logging per user request
+        console.log("📸 Photo keys:", Object.keys(photo));
+        console.log("📸 Base64 exists:", !!photo.base64);
 
         if (photo?.base64 && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(photo.base64);
