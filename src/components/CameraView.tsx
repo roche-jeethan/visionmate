@@ -73,7 +73,7 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
               current === "back" ? "front" : "back"
             )}
           >
-            <Ionicons name="camera-reverse" size={28} color="white" />
+            <Ionicons name="camera-reverse" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
       </ExpoCamera>
