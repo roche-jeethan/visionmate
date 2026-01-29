@@ -13,6 +13,7 @@ import CameraScreen from "./src/screens/CameraScreen";
 import LocationScreen from "./src/screens/LocationScreen";
 import InsightScreen from "./src/screens/InsightScreen";
 import DescribeScreen from "./src/screens/DescribeScreen";
+import AddPersonScreen from "./src/screens/AddPersonScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
 
 import { setServerHost } from "./src/config/runtime";
@@ -22,6 +23,7 @@ LogBox.ignoreAllLogs();
 const screens = [
   { name: "Settings", component: SettingsScreen, icon: "settings" },
   { name: "Insight", component: InsightScreen, icon: "eye" },
+  { name: "AddPerson", component: AddPersonScreen, icon: "person-add" },
   { name: "Emergency", component: EmergencyScreen, icon: "alert-circle" },
   { name: "Camera", component: CameraScreen, icon: "camera" },
   { name: "Describe", component: DescribeScreen, icon: "book" },
