@@ -6,6 +6,11 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    TextInput,
+    KeyboardAvoidingView,
+    Platform,
+    TouchableWithoutFeedback,
+    Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, CameraType } from "expo-camera";
@@ -23,6 +28,9 @@ export default function AddPersonScreen() {
     const speakText = useSpeech();
     const cameraRef = useRef<CameraView>(null);
 
+    const [personName, setPersonName] = useState("");
+    const [step, setStep] = useState<'name_input' | 'camera'>('name_input');
+
     useEffect(() => {
         requestPermission();
     }, []);
@@ -35,6 +43,16 @@ export default function AddPersonScreen() {
 
     const [captureProgress, setCaptureProgress] = useState(0);
     const TOTAL_PHOTOS = 10;
+
+    const handleNextStep = () => {
+        if (!personName.trim()) {
+            Alert.alert("Error", "Please enter a name");
+            speakText("Please enter a name");
+            return;
+        }
+        setStep('camera');
+        speakText("Camera ready. Position the face and press capture.");
+    };
 
     const takePicture = async () => {
         if (!cameraRef.current || isCapturing) return;
@@ -60,7 +78,10 @@ export default function AddPersonScreen() {
                     const uploadTask = fetch(`http://${SERVER_IP}:8000/add_person`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ image: photo.base64 }),
+                        body: JSON.stringify({
+                            image: photo.base64,
+                            name: personName.trim()
+                        }),
                     }).then(res => res.json());
                     uploadPromises.push(uploadTask);
                 }
@@ -75,7 +96,14 @@ export default function AddPersonScreen() {
 
             if (successCount === TOTAL_PHOTOS) {
                 speakText("All photos captured and saved");
-                Alert.alert("Success", "Capture complete");
+                Alert.alert("Success", "Capture complete", [
+                    {
+                        text: "OK", onPress: () => {
+                            setPersonName("");
+                            setStep('name_input');
+                        }
+                    }
+                ]);
             } else {
                 speakText(`Saved ${successCount} out of ${TOTAL_PHOTOS} photos`);
                 Alert.alert("Partial Success", `Saved ${successCount} out of ${TOTAL_PHOTOS} photos`);
@@ -107,12 +135,44 @@ export default function AddPersonScreen() {
         );
     }
 
+    if (step === 'name_input') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                        style={styles.inputContainer}
+                    >
+                        <Text style={styles.label}>Enter Person's Name</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g., John Doe"
+                            placeholderTextColor="#666"
+                            value={personName}
+                            onChangeText={setPersonName}
+                            autoFocus
+                        />
+                        <TouchableOpacity
+                            style={styles.nextButton}
+                            onPress={handleNextStep}
+                        >
+                            <Text style={styles.nextButtonText}>Next</Text>
+                        </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                </TouchableWithoutFeedback>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <CameraView ref={cameraRef} style={styles.camera} facing={facing}>
                 <View style={styles.overlay}>
                     <View style={styles.topControls}>
-                        <TouchableOpacity onPress={toggleCamera} style={styles.iconButton}>
+                        <TouchableOpacity onPress={() => setStep('name_input')} style={styles.iconButton}>
+                            <Ionicons name="arrow-back" size={32} color="white" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={toggleCamera} style={[styles.iconButton, { marginLeft: 20 }]}>
                             <Ionicons name="camera-reverse" size={32} color="white" />
                         </TouchableOpacity>
                     </View>
@@ -157,7 +217,7 @@ const styles = StyleSheet.create({
     },
     topControls: {
         flexDirection: "row",
-        justifyContent: "flex-end",
+        justifyContent: "flex-start",
         marginTop: 20,
     },
     bottomControls: {
@@ -217,6 +277,39 @@ const styles = StyleSheet.create({
         color: "white",
         fontSize: 12,
         marginTop: 4,
+        fontWeight: "bold",
+    },
+    inputContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+        backgroundColor: "#121212",
+    },
+    label: {
+        color: "white",
+        fontSize: 24,
+        marginBottom: 20,
+        fontWeight: "bold",
+    },
+    input: {
+        width: "100%",
+        backgroundColor: "#333",
+        color: "white",
+        padding: 15,
+        borderRadius: 10,
+        fontSize: 18,
+        marginBottom: 30,
+    },
+    nextButton: {
+        backgroundColor: "#005FCC",
+        paddingHorizontal: 40,
+        paddingVertical: 15,
+        borderRadius: 30,
+    },
+    nextButtonText: {
+        color: "white",
+        fontSize: 18,
         fontWeight: "bold",
     },
 });
