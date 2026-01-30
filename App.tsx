@@ -71,6 +71,8 @@ function AppContent() {
   );
 }
 
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
 export default function App() {
   useEffect(() => {
     (async () => {
@@ -85,8 +87,10 @@ export default function App() {
   }, []);
 
   return (
-    <TranslationProvider>
-      <AppContent />
-    </TranslationProvider>
+    <SafeAreaProvider>
+      <TranslationProvider>
+        <AppContent />
+      </TranslationProvider>
+    </SafeAreaProvider>
   );
 }

@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, CameraType, CameraPictureOptions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
@@ -48,6 +48,7 @@ export default function CameraScreen() {
   const { hasPermission, requestPermission } = useCamera();
   const { targetLanguage } = useTranslation();
   useScreenAnnounce("Camera");
+  const insets = useSafeAreaInsets();
   const [detectionResult, setDetectionResult] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
   const [facing, setFacing] = useState<CameraType>("back");
@@ -356,7 +357,7 @@ export default function CameraScreen() {
             )}
           </View>
 
-          <View style={styles.controls}>
+          <View style={[styles.controls, { bottom: insets.bottom + 20 }]}>
             <TouchableOpacity
               onPress={toggleCamera}
               style={styles.controlButton}
@@ -376,7 +377,7 @@ export default function CameraScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.centerButton}
+            style={[styles.centerButton, { bottom: insets.bottom + 100 }]}
             onPress={handlePositionAnnounce}
             activeOpacity={0.7}
           >

@@ -8,17 +8,16 @@ import {
 import { CameraView, CameraType } from "expo-camera";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useCamera } from "../permissions/useCamera";
 import { SERVER_IP } from "../config/config";
 import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
 
-
-
 export default function InsightScreen() {
     useScreenAnnounce('VisionMate Insight');
     const { hasPermission, requestPermission } = useCamera();
+    const insets = useSafeAreaInsets();
 
     const [facing, setFacing] = useState<CameraType>("front");
     const [isStreaming, setIsStreaming] = useState(false);
@@ -124,7 +123,7 @@ export default function InsightScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>VisionMate Insight</Text>
                 <View style={styles.statusContainer}>
@@ -142,7 +141,7 @@ export default function InsightScreen() {
                 />
 
                 <TouchableOpacity
-                    style={styles.flipButton}
+                    style={[styles.flipButton, { bottom: insets.bottom + 20 }]}
                     onPress={() => setFacing(c => c === "back" ? "front" : "back")}
                 >
                     <MaterialIcons name="flip-camera-ios" size={30} color="white" />
@@ -160,7 +159,7 @@ export default function InsightScreen() {
                     </Text>
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 

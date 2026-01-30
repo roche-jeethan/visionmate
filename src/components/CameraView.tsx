@@ -1,11 +1,12 @@
 import React, { useState, useRef } from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
-import { Camera, CameraType, CameraView as ExpoCamera, useCameraPermissions } from "expo-camera";
+import { CameraType, CameraView as ExpoCamera, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { describeImage } from "../utils/geminiAPI";
 import { speak } from "../utils/speech";
 import { useTranslation } from "../context/TranslationContext";
-import * as FileSystem from 'expo-file-system';
+import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 
 interface CameraViewProps {
   onImageDescribed?: (description: string) => void;
@@ -18,6 +19,7 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
   const cameraRef = useRef<ExpoCamera>(null);
   const [facing, setFacing] = useState<CameraType>("back");
   const { targetLanguage } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const takePicture = async () => {
     if (!cameraRef.current || isProcessing) return;
@@ -43,41 +45,63 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
     }
   };
 
+  const toggleCamera = () => {
+    setFacing(current => (current === "back" ? "front" : "back"));
+  };
+
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .runOnJS(true)
+    .onEnd(() => {
+      takePicture();
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .runOnJS(true)
+    .onEnd(() => {
+      toggleCamera();
+    });
+
+  const composedGesture = Gesture.Exclusive(doubleTap, singleTap);
+
   if (!permission?.granted) return null;
 
   return (
-    <View style={styles.container}>
-      {description && (
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionText}>{description}</Text>
-        </View>
-      )}
-      <ExpoCamera ref={cameraRef} style={styles.camera} facing={facing}>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, isProcessing && styles.buttonDisabled]}
-            onPress={takePicture}
-            disabled={isProcessing}
-          >
-            <Ionicons name="camera" size={28} color="white" />
-            <Text style={styles.buttonText}>
-              {isProcessing
-                ? (targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing...")
-                : (targetLanguage === 'hi' ? "विवरण" : "Describe")}
-            </Text>
-          </TouchableOpacity>
+    <GestureHandlerRootView style={styles.container}>
+      <GestureDetector gesture={composedGesture}>
+        <SafeAreaView style={styles.container}>
+          {description && (
+            <View style={[styles.descriptionContainer, { paddingTop: insets.top + 10 }]}>
+              <Text style={styles.descriptionText}>{description}</Text>
+            </View>
+          )}
+          <ExpoCamera ref={cameraRef} style={styles.camera} facing={facing}>
+            <View style={[styles.buttonContainer, { paddingBottom: insets.bottom + 20 }]}>
+              <TouchableOpacity
+                style={[styles.button, isProcessing && styles.buttonDisabled]}
+                onPress={takePicture}
+                disabled={isProcessing}
+              >
+                <Ionicons name="camera" size={28} color="white" />
+                <Text style={styles.buttonText}>
+                  {isProcessing
+                    ? (targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing...")
+                    : (targetLanguage === 'hi' ? "विवरण" : "Describe")}
+                </Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setFacing(current =>
-              current === "back" ? "front" : "back"
-            )}
-          >
-            <Ionicons name="camera-reverse" size={28} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </ExpoCamera>
-    </View>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={toggleCamera}
+              >
+                <Ionicons name="camera-reverse" size={28} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </ExpoCamera>
+        </SafeAreaView>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
 
@@ -89,7 +113,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   buttonContainer: {
-    height: 100,
     flexDirection: 'row',
     backgroundColor: 'transparent',
     justifyContent: 'space-evenly',
@@ -105,7 +128,9 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 50,
     alignItems: 'center',
-    width: 100, // Fixed width for both buttons
+    width: 100,
+    minHeight: 80,
+    justifyContent: 'center',
   },
   buttonDisabled: {
     opacity: 0.5,
