@@ -1,38 +1,16 @@
-import {
-  EXPO_PUBLIC_FIREBASE_API_KEY,
-  EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  EXPO_PUBLIC_FIREBASE_APP_ID,
-  EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
-  SERVER_IP,
-  TWILIO_ACCOUNT_SID,
-  TWILIO_AUTH_TOKEN,
-  TWILIO_PHONE_NUMBER,
-  TWILIO_WHATSAPP_NUMBER,
-} from "@env";
-
 export const firebaseConfig = {
-  apiKey: EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 export const twilioConfig = {
-  accountSid: TWILIO_ACCOUNT_SID,
-  authToken: TWILIO_AUTH_TOKEN,
-  phoneNumber: TWILIO_PHONE_NUMBER,
-  whatsappNumber: TWILIO_WHATSAPP_NUMBER,
+  accountSid: process.env.TWILIO_ACCOUNT_SID,
+  authToken: process.env.TWILIO_AUTH_TOKEN,
+  phoneNumber: process.env.TWILIO_PHONE_NUMBER,
+  whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER,
 };
-
-export const serverIP = SERVER_IP;
-
-// Add validation
-if (!SERVER_IP) {
-  console.warn("⚠️ SERVER_IP is not defined in environment variables");
-}

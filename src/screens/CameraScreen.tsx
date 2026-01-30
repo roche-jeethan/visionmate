@@ -12,6 +12,9 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { CameraView, CameraType, CameraPictureOptions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
+import { LightSensor } from "expo-sensors";
+import * as Haptics from "expo-haptics";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCamera } from "../permissions/useCamera";
 import { useTranslation } from "../context/TranslationContext";
@@ -24,7 +27,6 @@ import {
   ObjectPosition,
 } from "../utils/positionUtils";
 
-// Add interface for detected object
 interface DetectedObject {
   label: string;
   position: "left" | "right" | "center";
@@ -32,46 +34,115 @@ interface DetectedObject {
   box: [number, number, number, number];
 }
 
+interface DepthInfo {
+  label: string;
+  distance_m: number;
+}
+
 interface WSResponse {
   translated_text: string;
-  depth?: {
-    depth: number;
-    confidence: number;
-    method: string;
-  };
+  depth?: DepthInfo[];
   detected_objects?: DetectedObject[];
   status: "success" | "error";
   error?: string;
+  boxes?: DetectedObject[];
+  count?: number;
+}
+
+const HIGH_PRIORITY = new Set([
+  "person", "car", "bus", "truck", "bicycle", "chair", "couch", "bed", "laptop"
+]);
+
+const MEDIUM_PRIORITY = new Set([
+  "bottle", "backpack", "umbrella", "suitcase"
+]);
+
+function getPriority(label: string, distance?: number): "high" | "medium" | "low" {
+  // 6. Dynamic Priority Override (Critical Rule)
+  // IF distance == VERY_CLOSE (< 0.7) -> FORCE priority = HIGH
+  if (distance !== undefined && distance < 0.7) {
+    return "high";
+  }
+
+  const lowerLabel = label.toLowerCase();
+  if (HIGH_PRIORITY.has(lowerLabel)) return "high";
+  if (MEDIUM_PRIORITY.has(lowerLabel)) return "medium";
+  return "low";
 }
 
 export default function CameraScreen() {
+  // Cache for utterance control: label -> {count, lastUttered}
+  const utteranceCache = useRef<Map<string, { count: number, lastUttered: number }>>(new Map());
   const { hasPermission, requestPermission } = useCamera();
   const { targetLanguage } = useTranslation();
   useScreenAnnounce("Camera");
   const insets = useSafeAreaInsets();
   const [detectionResult, setDetectionResult] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
+  // Always default to back camera
+  // Always default to back camera
   const [facing, setFacing] = useState<CameraType>("back");
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isActive, setIsActive] = useState(true);
-  const [depthValue, setDepthValue] = useState<number | null>(null);
-  const [isObjectClose, setIsObjectClose] = useState(false);
   const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
-  const [lastAnnouncedPosition, setLastAnnouncedPosition] = useState<{
-    label: string;
-    position: ObjectPosition;
-  } | null>(null);
-  const PROXIMITY_THRESHOLD = 1.0; // threshold (update as needed)
+  const [currentDepths, setCurrentDepths] = useState<DepthInfo[]>([]);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [hasAnnouncedInstruction, setHasAnnouncedInstruction] = useState(false);
+
   const speakText = useSpeech();
 
   const cameraRef = useRef<CameraView>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const isStreaming = useRef<boolean>(false);
+  const isWaitingForResponse = useRef<boolean>(false);
   const appState = useRef(AppState.currentState);
+
+
+
 
   useEffect(() => {
     requestPermission();
-  }, []);
+
+    // Light Sensor for Auto Torch
+    LightSensor.setUpdateInterval(1000);
+    const subscription = LightSensor.addListener(({ illuminance }) => {
+      // Threshold for "darkness" (e.g. < 5 lux)
+      // Only turn ON if not already on
+      if (illuminance < 10) {
+        setIsTorchOn((prev) => {
+          if (!prev) {
+            speakText(targetLanguage === "hi" ? "फ्लैशलाइट चालू कर रहा हूँ" : "Turning on the torch");
+            return true;
+          }
+          return prev;
+        });
+      } else if (illuminance > 20) {
+        setIsTorchOn((prev) => {
+          if (prev) {
+            speakText(targetLanguage === "hi" ? "फ्लैशलाइट बंद कर रहा हूँ" : "Turning off the torch");
+            return false;
+          }
+          return prev;
+        });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [targetLanguage]);
+
+  // Announce instructions on mount/focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasAnnouncedInstruction) {
+        speakText(targetLanguage === "hi"
+          ? "कैमरा बदलने के लिए दो बार टैप करें"
+          : "Double tap to switch the camera");
+        setHasAnnouncedInstruction(true);
+      }
+    }, [targetLanguage, hasAnnouncedInstruction])
+  );
 
   function toggleCamera() {
     setFacing((current) => (current === "back" ? "front" : "back"));
@@ -92,6 +163,107 @@ export default function CameraScreen() {
     setIsConnected(false);
   }, []);
 
+  // Gesture for double tap
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .runOnJS(true)
+    .onEnd((_e, success) => {
+      if (success) {
+        const nextFacing = facing === "back" ? "front" : "back";
+        setFacing(nextFacing);
+        const message =
+          targetLanguage === "hi"
+            ? nextFacing === "front"
+              ? "सामने का कैमरा"
+              : "पीछे का कैमरा"
+            : nextFacing === "front"
+              ? "Front camera"
+              : "Back camera";
+        speakText(message);
+      }
+    });
+
+  // Single tap for manual trigger (Medium Priority)
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .runOnJS(true)
+    .onEnd((_e, success) => {
+      if (success) {
+        handleManualTrigger();
+      }
+    });
+
+  // Exclusive gesture: Single tap waits for Double tap failure
+  const gestures = Gesture.Exclusive(doubleTap, singleTap);
+
+  const lastAnnouncedObjects = useRef<Map<string, number | undefined>>(new Map()); // For distance tracking
+  const objectPersistence = useRef<Map<string, number>>(new Map()); // Label -> Frame Count
+  const lastAnnouncedGroups = useRef<Map<string, number>>(new Map()); // Label -> Count
+  const lastHapticTime = useRef<number>(0);
+
+  const handleHaptics = (minDist: number) => {
+    // Haptic feedback only works on real devices (not simulators)
+    const now = Date.now();
+    if (minDist < 0.7) {
+      if (now - lastHapticTime.current > 500) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => { });
+        lastHapticTime.current = now;
+      }
+    } else if (minDist < 5.0) {
+      if (now - lastHapticTime.current > 1000) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => { });
+        lastHapticTime.current = now;
+      }
+    }
+  };
+
+  const handleManualTrigger = () => {
+    console.log("Adding manual trigger request");
+    // We can just call processAnnouncements with current state and force userRequested=true
+    processAnnouncements(detectedObjects, currentDepths, true);
+  };
+
+  // Logic to process announcements based on state changes
+  const processAnnouncements = (
+    newBoxes: DetectedObject[],
+    newDepths: DepthInfo[],
+    isUserRequested: boolean = false
+  ) => {
+    // Immediate haptic feedback for any object below 5m
+    let hapticTriggered = false;
+    newDepths.forEach(d => {
+      if (d.distance_m < 5.0 && !hapticTriggered) {
+        handleHaptics(d.distance_m);
+        hapticTriggered = true;
+      }
+    });
+
+
+    // Utterance logic: only utter every 3rd detection, and not back-to-back
+    const now = Date.now();
+    const messages: string[] = [];
+    newBoxes.forEach(box => {
+      // Lowered threshold to match backend YOLO_CONF (0.25)
+      if (box.confidence < 0.25) return;
+      const label = box.label.toLowerCase();
+      const cache = utteranceCache.current.get(label) || { count: 0, lastUttered: 0 };
+
+      // Debounce: don't utter same object too frequently (every 1.5s)
+      if (now - cache.lastUttered > 1500) {
+        let msg = box.label;
+        if (box.position === "left") msg += targetLanguage === "hi" ? " बाईं ओर" : " on your left";
+        else if (box.position === "right") msg += targetLanguage === "hi" ? " दाईं ओर" : " on your right";
+        else msg += targetLanguage === "hi" ? " सामने" : " ahead";
+        messages.push(msg);
+        cache.lastUttered = now;
+      }
+      utteranceCache.current.set(label, cache);
+    });
+    if (messages.length > 0) {
+      speakText(messages.join(". "));
+    }
+  };
+
   const initializeWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       console.log("WebSocket already connected");
@@ -108,71 +280,50 @@ export default function CameraScreen() {
       wsRef.current = ws;
       setIsConnected(true);
 
-      await ws.send("init");
-      await ws.send(JSON.stringify({ target_lang: targetLanguage }));
+      // Send single JSON init message
+      ws.send(JSON.stringify({ type: "init", target_lang: targetLanguage }));
 
       isStreaming.current = true;
       startStreaming();
     };
 
-    // Make sure to update your WebSocket message handler to store the boxes info
     ws.onmessage = (event) => {
       try {
-        const result = JSON.parse(event.data);
-        if (result.status === "success" && result.boxes) {
-          setDetectedObjects(result.boxes);
-        }
-        // ...rest of your existing WebSocket handler
+        // Signal that we've received a response and are ready for the next frame
+        isWaitingForResponse.current = false;
+
+        const result: WSResponse = JSON.parse(event.data);
+
         if (result.status === "error") {
           console.error("Server error:", result.error);
           return;
+        }
+
+        if (result.boxes) {
+          console.log("Detected:", result.count || result.boxes.length);
+          setDetectedObjects(result.boxes);
         }
 
         if (result.translated_text) {
           setDetectionResult(result.translated_text);
         }
 
-        if (result.depth?.depth !== undefined) {
-          setDepthValue(result.depth.depth);
-          const isClose = result.depth.depth < PROXIMITY_THRESHOLD;
-
-          if (isClose && !isObjectClose) {
-            const warningText =
-              targetLanguage === "hi"
-                ? "आप वस्तु के बहुत करीब हैं"
-                : "You are too close to the object";
-            speakText(warningText);
-          }
-          setIsObjectClose(isClose);
+        if (result.depth && Array.isArray(result.depth)) {
+          setCurrentDepths(result.depth);
         }
 
         if (result.detected_objects && result.detected_objects.length > 0) {
-          setDetectedObjects(result.detected_objects);
-
-          // Get the most prominent object (first one)
-          const mainObject = result.detected_objects[0];
-          const position = getObjectPosition(mainObject.bbox);
-
-          // Announce position changes
-          if (
-            !lastAnnouncedPosition ||
-            lastAnnouncedPosition.position !== position ||
-            lastAnnouncedPosition.label !== mainObject.label
-          ) {
-            const announcement = getPositionAnnouncement(
-              position,
-              mainObject.label,
-              targetLanguage
-            );
-            speakText(announcement);
-            setLastAnnouncedPosition({
-              label: mainObject.label,
-              position: position,
-            });
-          }
+          setDetectedObjects(result.detected_objects); // Fallback if backend sends this key
         }
+
+        // Run automatic announcement logic
+        const boxes = result.boxes || result.detected_objects || [];
+        const depths = result.depth || [];
+        processAnnouncements(boxes, depths);
+
       } catch (error) {
         console.error("Parse Error:", error);
+        isWaitingForResponse.current = false;
       }
     };
 
@@ -181,6 +332,8 @@ export default function CameraScreen() {
       isStreaming.current = false;
       setIsConnected(false);
       wsRef.current = null;
+      // Clear tracked objects on disconnect so they are re-announced on reconnect?
+      lastAnnouncedObjects.current.clear();
     };
 
     ws.onerror = (error) => {
@@ -188,32 +341,57 @@ export default function CameraScreen() {
     };
 
     wsRef.current = ws;
-  }, [targetLanguage]);
+  }, [targetLanguage, closeWebSocket]);
 
   const startStreaming = async () => {
-    while (
-      isActive &&
-      isStreaming.current &&
-      wsRef.current?.readyState === WebSocket.OPEN
-    ) {
+    while (isActive && isStreaming.current) {
       try {
-        if (!cameraRef.current) continue;
+        if (!cameraRef.current || !hasPermission) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+
+        // Backpressure: Wait if we haven't received a response to the last frame
+        if (isWaitingForResponse.current) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          continue;
+        }
+
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          initializeWebSocket();
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
 
         const pictureOptions: CameraPictureOptions = {
           base64: true,
           quality: 0.5,
           shutterSound: false,
+          skipProcessing: true,
         };
 
+        // Mark as waiting BEFORE taking the picture to be safe
+        isWaitingForResponse.current = true;
         const photo = await cameraRef.current.takePictureAsync(pictureOptions);
 
-        if (photo?.base64) {
+        // Defensive Logging per user request
+        console.log("📸 Photo keys:", Object.keys(photo));
+        console.log("📸 Base64 exists:", !!photo.base64);
+
+        if (photo?.base64 && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(photo.base64);
+        } else {
+          // If transfer didn't happen, reset the waiting flag
+          isWaitingForResponse.current = false;
         }
+
       } catch (err) {
         console.error("Frame capture error:", err);
+        isWaitingForResponse.current = false;
       }
-      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Fixed small delay to avoid hammering hardware
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
   };
 
@@ -256,12 +434,15 @@ export default function CameraScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log("Screen focused - initializing camera and WebSocket");
+      setIsCameraReady(false);
+      setFacing("back");
       requestPermission();
       initializeWebSocket();
 
       return () => {
         console.log("Screen unfocused - cleaning up");
         closeWebSocket();
+        setIsCameraReady(false);
       };
     }, [initializeWebSocket, closeWebSocket])
   );
@@ -273,57 +454,7 @@ export default function CameraScreen() {
     }
   }, [targetLanguage]);
 
-  const handleScreenPress = async () => {
-    if (detectionResult) {
-      await speakText(detectionResult);
-    }
-  };
-
-  // Update the position announcement handler
-  const handlePositionAnnounce = () => {
-    console.log("Current detected objects:", detectedObjects);
-
-    if (detectedObjects && detectedObjects.length > 0) {
-      // Sort objects by confidence to get the most confident detection
-      const sortedObjects = [...detectedObjects].sort(
-        (a, b) => b.confidence - a.confidence
-      );
-      const mainObject = sortedObjects[0];
-
-      // Create announcement message
-      let announcement: string;
-      if (targetLanguage === "hi") {
-        switch (mainObject.position) {
-          case "left":
-            announcement = `${mainObject.label} बाईं ओर है`;
-            break;
-          case "right":
-            announcement = `${mainObject.label} दाईं ओर है`;
-            break;
-          default:
-            announcement = `${mainObject.label} सामने है`;
-        }
-      } else {
-        announcement = `${mainObject.label} is ${mainObject.position === "center"
-            ? "in the center"
-            : `on the ${mainObject.position}`
-          }`;
-      }
-
-      console.log(`🗣️ Announcing: ${announcement}`);
-      console.log(
-        `📊 Confidence: ${(mainObject.confidence * 100).toFixed(0)}%`
-      );
-
-      speakText(announcement);
-    } else {
-      const noObjectMessage =
-        targetLanguage === "hi" ? "कोई वस्तु नहीं मिली" : "No object detected";
-      console.log("⚠️ No objects detected");
-      speakText(noObjectMessage);
-    }
-  };
-
+  // Always show camera view (never blank), default to back camera
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity
@@ -374,6 +505,32 @@ export default function CameraScreen() {
                 color="white"
               />
             </TouchableOpacity>
+    <GestureHandlerRootView style={styles.container}>
+      <GestureDetector gesture={gestures}>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.camera}>
+            <CameraView
+              ref={cameraRef as any}
+              style={StyleSheet.absoluteFill}
+              facing={facing}
+              enableTorch={isTorchOn}
+              animateShutter={false}
+              onCameraReady={() => setIsCameraReady(true)}
+            >
+              <View style={styles.centerLine} />
+              <View style={styles.detectionContainer}>
+                {!isConnected && (
+                  <Text style={styles.connectionStatus}>Reconnecting...</Text>
+                )}
+                {!hasPermission && (
+                  <Text style={styles.connectionStatus}>Camera permission required</Text>
+                )}
+                {/* Removed 'Initializing camera...' message */}
+                {detectionResult && (
+                  <Text style={styles.detectionText}>{detectionResult}</Text>
+                )}
+              </View>
+            </CameraView>
           </View>
 
           <TouchableOpacity
@@ -425,45 +582,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  proximityWarning: {
-    width: "100%",
-    textAlign: "center",
-    backgroundColor: "rgba(255,0,0,0.7)",
-    color: "#fff",
-    padding: 15,
-    fontSize: 18,
-    borderRadius: 8,
-    marginTop: 10,
-    fontWeight: "bold",
-  },
-  controls: {
-    position: "absolute",
-    bottom: 30,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-  },
-  controlButton: {
-    padding: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 25,
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  permissionButton: {
-    backgroundColor: "#007AFF",
-    padding: 15,
-    borderRadius: 10,
-  },
-  permissionButtonText: {
-    color: "white",
-    fontSize: 16,
-  },
   centerLine: {
     position: "absolute",
     left: "50%",
@@ -473,13 +591,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     zIndex: 1,
   },
-  centerButton: {
-    position: "absolute",
-    bottom: 100, // Changed from 20 to 100 to move it up
-    alignSelf: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    padding: 15,
-    borderRadius: 30,
-    zIndex: 2,
-  },
+  // Removed unused styles
 });

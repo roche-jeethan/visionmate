@@ -15,6 +15,8 @@ import InsightScreen from "./src/screens/InsightScreen";
 import DescribeScreen from "./src/screens/DescribeScreen";
 import AddPersonScreen from "./src/screens/AddPersonScreen";
 import { BiometricAuth } from "./src/components/auth/BiometricAuth";
+import { SERVER_IP } from "./src/config/config"
+
 
 import { setServerHost } from "./src/config/runtime";
 
@@ -77,8 +79,8 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const host = SERVER_IP;
-        console.log("Resolved backend host:", host);
+        const host = await resolveServerIP();
+        console.log("Resolved backend host:", host); // prints IP (no port)
         setServerHost(host);
       } catch (err) {
         console.warn("Failed to resolve server IP, using fallback", err);

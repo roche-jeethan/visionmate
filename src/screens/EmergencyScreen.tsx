@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import {View,Text,StyleSheet,TouchableOpacity,Alert,FlatList,ActivityIndicator,Linking,} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList, ActivityIndicator, Linking, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getEmergencyContacts } from "../services/userService";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -106,7 +106,7 @@ const EmergencyScreen = () => {
     const mapLink = generateMapsLink(coords.latitude, coords.longitude);
     return mapLink;
   }
-  
+
   const makeEmergencyCall = async (number: string) => {
     try {
       const response = await axios.post(`http://${SERVER_IP}:8000/make-call`, {
@@ -118,46 +118,46 @@ const EmergencyScreen = () => {
       Alert.alert("Call Failed", "Unable to place the call.");
     }
   };
- /* const sendEmergencyMessage = async (number: string, message: string) => {
-    try {
-      // First check if SMS is available
-      const isAvailable = await SMS.isAvailableAsync();
-      if (!isAvailable) {
-        Alert.alert("Error", "SMS is not available on this device");
-        return;
-      }
-      const coords = await getCurrentLocation();
-      if (!coords) return;
-
-      const mapLink = generateMapsLink(coords.latitude, coords.longitude);
-      // Send the SMS
-      const { result } = await SMS.sendSMSAsync(
-        [number], 
-        message ||
-          `EMERGENCY: I need immediate help! Please contact me as soon as possible. ${mapLink}`, // Default emergency message if none provided
-      );
-
-      switch (result) {
-        case "sent":
-          Alert.alert("Success", "Emergency message was sent");
-          break;
-        case "cancelled":
-          Alert.alert("Cancelled", "Message sending was cancelled");
-          break;
-        default:
-          Alert.alert("Status", "Message status unknown");
-      }
-    } catch (error) {
-      console.error("SMS failed:", error);
-      Alert.alert("Error", "Failed to send emergency message");
-    }
-  };*/
+  /* const sendEmergencyMessage = async (number: string, message: string) => {
+     try {
+       // First check if SMS is available
+       const isAvailable = await SMS.isAvailableAsync();
+       if (!isAvailable) {
+         Alert.alert("Error", "SMS is not available on this device");
+         return;
+       }
+       const coords = await getCurrentLocation();
+       if (!coords) return;
+ 
+       const mapLink = generateMapsLink(coords.latitude, coords.longitude);
+       // Send the SMS
+       const { result } = await SMS.sendSMSAsync(
+         [number], 
+         message ||
+           `EMERGENCY: I need immediate help! Please contact me as soon as possible. ${mapLink}`, // Default emergency message if none provided
+       );
+ 
+       switch (result) {
+         case "sent":
+           Alert.alert("Success", "Emergency message was sent");
+           break;
+         case "cancelled":
+           Alert.alert("Cancelled", "Message sending was cancelled");
+           break;
+         default:
+           Alert.alert("Status", "Message status unknown");
+       }
+     } catch (error) {
+       console.error("SMS failed:", error);
+       Alert.alert("Error", "Failed to send emergency message");
+     }
+   };*/
 
   const sendEmergencyMessage = async (number: string, message: string) => {
     const coords = await getCurrentLocation();
-      if (!coords) return;
+    if (!coords) return;
 
-      const mapLink = generateMapsLink(coords.latitude, coords.longitude);
+    const mapLink = generateMapsLink(coords.latitude, coords.longitude);
 
     try {
       const response = await axios.post(`http://${SERVER_IP}:8000/send-sms`, {
@@ -262,9 +262,9 @@ const EmergencyScreen = () => {
         "No response detected. Calling emergency contact."
       );
       await speakText(noResponseMessage);
-    
+
       const translatedMessage = "";
-    
+
       const callPromises = contacts.map((contact) =>
         makeEmergencyCall(contact)
       );
@@ -272,15 +272,15 @@ const EmergencyScreen = () => {
       const smsPromises = contacts.map((contact) =>
         sendEmergencyMessage(contact, translatedMessage)
       );
-    
+
       const whatsappPromises = contacts.map((contact) =>
         sendWhatsAppMessage(contact, translatedMessage)
       );
-    
+
       await Promise.all([...callPromises, ...smsPromises, ...whatsappPromises]);
     }, 8000); // 8 seconds
   };
-    
+
 
   useEffect(() => {
     return () => {
@@ -398,9 +398,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#E6E6FA",
   },
   title: {
-      fontSize: 30,
-      fontWeight: "bold",
-      margin: 16,
+    fontSize: 30,
+    fontWeight: "bold",
+    margin: 16,
   },
   description: {
     fontSize: 16,

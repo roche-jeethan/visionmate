@@ -6,7 +6,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-export const describeImage = async (imageUri, targetLang = 'en') => {
+export const describeImage = async (imageUriOrBase64, targetLang = 'en') => {
   try {
     console.log('Starting image processing...', { imageUri });
 
