@@ -354,3 +354,50 @@ async def face_stream(websocket: WebSocket):
             await websocket.close()
         except:
             pass
+
+class AddPersonRequest(BaseModel):
+    image: str # base64 string
+    name: str = "new_user" # Optional name, default to new_user
+
+@app.post("/add_person")
+async def add_person(request: AddPersonRequest):
+    try:
+        # Define user directory based on name
+        # If name is "new_user", we might want to put it in a generic folder or handle it differently
+        # For now, let's follow the user's suggestion of using a specific folder for the person
+        
+        # We need to access the db_path from the face_engine instance if possible, 
+        # or construct it relative to the project structure.
+        # The face_engine was initialized with "../faces_db"
+        
+        base_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../faces_db"))
+        user_dir = os.path.join(base_db_path, request.name)
+        os.makedirs(user_dir, exist_ok=True)
+        
+        # Decode image
+        image_data = base64.b64decode(request.image)
+        
+        # Generate filename with timestamp
+        filename = f"photo_{int(time.time())}.jpg"
+        filepath = os.path.join(user_dir, filename)
+        
+        with open(filepath, "wb") as f:
+            f.write(image_data)
+            
+        logger.info(f"Saved new person photo to {filepath}")
+        
+        # Incremental Update
+        if face_engine:
+            success = face_engine.add_single_image_to_db(filepath, request.name)
+            if success:
+                return {"status": "success", "filename": filename, "message": f"Added {filename}"}
+            else:
+                # Even if face detection fails, we saved the photo. 
+                # But for the purpose of "adding a person", it might be considered a partial failure if no face found.
+                # The user's snippet returns error if no face detected.
+                return {"status": "error", "message": "No face detected in the image"}
+        
+        return {"status": "success", "filename": filename, "message": "Saved to disk (engine not loaded)"}
+    except Exception as e:
+        logger.error(f"Failed to add person: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

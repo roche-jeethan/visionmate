@@ -54,6 +54,24 @@ class VisionMateInsight:
             print(f"No images found in {self.db_path}. Check your folder structure.")
         print(f"Total identities loaded: {len(set(self.known_names))} | Total embeddings: {len(self.known_embeddings)}")
 
+    def add_single_image_to_db(self, img_path, name):
+        """Processes one image and adds it to the live database in memory."""
+        img = cv2.imread(img_path)
+        if img is None:
+            return False
+            
+        faces = self.app.get(img)
+        if len(faces) > 0:
+            # Get largest face
+            face = sorted(faces, key=lambda x: (x.bbox[2]-x.bbox[0])*(x.bbox[3]-x.bbox[1]), reverse=True)[0]
+            
+            # Append to current lists instead of reloading everything
+            self.known_embeddings.append(face.normed_embedding)
+            self.known_names.append(name)
+            print(f"Incrementally loaded: {name} from {os.path.basename(img_path)}")
+            return True
+        return False
+
     def process_frame(self, frame):
         if frame is None:
             return []
