@@ -19,7 +19,6 @@ class TranslationRequest(BaseModel):
     text: str
     target_lang: str
 
-
 load_dotenv()
 EXPO_PUBLIC_SERVER_IP = os.getenv("EXPO_PUBLIC_SERVER_IP")
 if not EXPO_PUBLIC_SERVER_IP:
@@ -279,7 +278,7 @@ except Exception as e:
 @app.websocket("/ws/face")
 async def face_stream(websocket: WebSocket):
     await websocket.accept()
-    print(f"Face WebSocket connection established on {SERVER_IP}")
+    print(f"Face WebSocket connection established on {EXPO_PUBLIC_SERVER_IP}")
 
     try:
         if face_engine is None:

@@ -455,56 +455,7 @@ export default function CameraScreen() {
   }, [targetLanguage]);
 
   // Always show camera view (never blank), default to back camera
-  return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity
-        style={styles.camera}
-        onPress={handleScreenPress}
-        activeOpacity={0.9}
-      >
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing={facing}
-          enableTorch={isTorchOn}
-          animateShutter={false}
-        >
-          {/* Keep the center line */}
-          <View style={styles.centerLine} />
-
-          <View style={styles.detectionContainer}>
-            {!isConnected && (
-              <Text style={styles.connectionStatus}>Reconnecting...</Text>
-            )}
-            {detectionResult && (
-              <Text style={styles.detectionText}>{detectionResult}</Text>
-            )}
-            {isObjectClose && (
-              <Text style={styles.proximityWarning}>
-                {targetLanguage === "hi"
-                  ? "आप वस्तु के बहुत करीब हैं"
-                  : "You are too close to the object"}
-              </Text>
-            )}
-          </View>
-
-          <View style={[styles.controls, { bottom: insets.bottom + 20 }]}>
-            <TouchableOpacity
-              onPress={toggleCamera}
-              style={styles.controlButton}
-            >
-              <Ionicons name="camera-reverse" size={30} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleTorchToggle}
-              style={styles.controlButton}
-            >
-              <Ionicons
-                name={isTorchOn ? "flashlight" : "flashlight-outline"}
-                size={24}
-                color="white"
-              />
-            </TouchableOpacity>
+   return (
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={gestures}>
         <SafeAreaView style={styles.container}>
@@ -532,17 +483,9 @@ export default function CameraScreen() {
               </View>
             </CameraView>
           </View>
-
-          <TouchableOpacity
-            style={[styles.centerButton, { bottom: insets.bottom + 100 }]}
-            onPress={handlePositionAnnounce}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="location" size={30} color="white" />
-          </TouchableOpacity>
-        </CameraView>
-      </TouchableOpacity>
-    </SafeAreaView>
+        </SafeAreaView>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
 
@@ -591,5 +534,4 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     zIndex: 1,
   },
-  // Removed unused styles
 });

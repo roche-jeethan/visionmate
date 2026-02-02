@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { describeImage } from "../utils/geminiAPI";
 import { speak } from "../utils/speech";
 import { useTranslation } from "../context/TranslationContext";
-import * as FileSystem from 'expo-file-system';
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 interface CameraViewProps {
   onImageDescribed?: (description: string) => void;
@@ -19,33 +19,6 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
   const [facing, setFacing] = useState<CameraType>("back");
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { targetLanguage } = useTranslation();
-  const insets = useSafeAreaInsets();
-
-  // Reset to back camera on focus
-  useFocusEffect(
-    useCallback(() => {
-      setFacing("back");
-      setIsCameraReady(false); // Reset to ensure onCameraReady triggers again
-      return () => {
-        setIsCameraReady(false);
-      };
-    }, [])
-  );
-
-  const doubleTap = Gesture.Tap()
-    .numberOfTaps(2)
-    .runOnJS(true)
-    .onEnd((_e, success) => {
-      if (success) {
-        const nextFacing = facing === "back" ? "front" : "back";
-        setFacing(nextFacing);
-        const message =
-          targetLanguage === "hi"
-            ? (nextFacing === "front" ? "सामने का कैमरा" : "पीछे का कैमरा")
-            : (nextFacing === "front" ? "Front camera" : "Back camera");
-        speak(message, targetLanguage);
-      }
-    });
 
   // Reset to back camera on focus
   useFocusEffect(
@@ -93,9 +66,9 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
       onImageDescribed?.(desc);
       await speak(desc, targetLanguage);
     } catch (error) {
-      console.error("Error:", error);
-      const errorMessage = targetLanguage === 'hi' 
-        ? "छवि को संसाधित करने में विफल" 
+      console.error("Error in Describe:", error);
+      const errorMessage = targetLanguage === 'hi'
+        ? "छवि को संसाधित करने में विफल"
         : "Failed to process image";
       await speak(errorMessage, targetLanguage);
     } finally {
@@ -103,61 +76,43 @@ export default function CameraView({ onImageDescribed }: CameraViewProps) {
     }
   };
 
-  const toggleCamera = () => {
-    setFacing(current => (current === "back" ? "front" : "back"));
-  };
-
-  const singleTap = Gesture.Tap()
-    .numberOfTaps(1)
-    .runOnJS(true)
-    .onEnd(() => {
-      takePicture();
-    });
-
-  const doubleTap = Gesture.Tap()
-    .numberOfTaps(2)
-    .runOnJS(true)
-    .onEnd(() => {
-      toggleCamera();
-    });
-
-  const composedGesture = Gesture.Exclusive(doubleTap, singleTap);
-
   if (!permission?.granted) return null;
 
   return (
-    <View style={styles.container}>
-      {description && (
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionText}>{description}</Text>
-        </View>
-      )}
-      <ExpoCamera ref={cameraRef} style={styles.camera} facing={facing}>
-        <View style={styles.buttonContainer}>
+    <GestureDetector gesture={doubleTap}>
+      <View style={styles.container}>
+        {description && (
+          <View style={styles.descriptionContainer}>
+            <Text style={styles.descriptionText}>{description}</Text>
+          </View>
+        )}
+        <ExpoCamera
+          ref={cameraRef}
+          style={styles.camera}
+          facing={facing}
+          onCameraReady={() => {
+            console.log("Describe Camera Ready");
+            setIsCameraReady(true);
+          }}
+        >
+          {/* Full Screen Area for Tapping to Describe */}
           <TouchableOpacity
-            style={[styles.button, isProcessing && styles.buttonDisabled]}
+            activeOpacity={1}
+            style={styles.fullScreenTrigger}
             onPress={takePicture}
             disabled={isProcessing}
           >
-            <Ionicons name="camera" size={28} color="white" />
-            <Text style={styles.buttonText}>
-              {isProcessing 
-                ? (targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing...") 
-                : (targetLanguage === 'hi' ? "विवरण" : "Describe")}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setFacing(current => 
-              current === "back" ? "front" : "back"
+            {isProcessing && (
+              <View style={styles.processingOverlay}>
+                <Text style={styles.processingText}>
+                  {targetLanguage === 'hi' ? "प्रोसेसिंग..." : "Processing..."}
+                </Text>
+              </View>
             )}
-          >
-            <Ionicons name="camera-reverse" size={28} color="white" />
           </TouchableOpacity>
-        </View>
-      </ExpoCamera>
-    </View>
+        </ExpoCamera>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -168,22 +123,16 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  buttonContainer: {
-    height: 100,
-    flexDirection: 'row',
+  fullScreenTrigger: {
+    flex: 1,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  button: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 15,
-    borderRadius: 50,
-    alignItems: 'center',
-    width: 100, // Fixed width for both buttons
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+  processingOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 20,
+    borderRadius: 15,
   },
   processingText: {
     color: 'white',

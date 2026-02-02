@@ -5,8 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { LogBox } from "react-native";
 import { TranslationProvider } from "./src/context/TranslationContext";
 
-import { SERVER_IP } from "./src/config/config";
-
 import SettingsScreen from "./src/screens/SettingsScreen";
 import EmergencyScreen from "./src/screens/EmergencyScreen";
 import CameraScreen from "./src/screens/CameraScreen";
@@ -79,9 +77,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const host = await resolveServerIP();
-        console.log("Resolved backend host:", host); // prints IP (no port)
-        setServerHost(host);
+        console.log("Resolved backend host:", SERVER_IP); // prints IP (no port)
       } catch (err) {
         console.warn("Failed to resolve server IP, using fallback", err);
       }
