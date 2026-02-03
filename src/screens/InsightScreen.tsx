@@ -3,7 +3,8 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
+    Pressable,
+    TouchableOpacity
 } from "react-native";
 import { CameraView, CameraType } from "expo-camera";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -26,6 +27,7 @@ export default function InsightScreen() {
     const cameraRef = useRef<CameraView>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const streamingRef = useRef(false);
+    const lastTapRef = useRef<number>(0);
 
     // WebSocket and Camera Logic
     const closeWebSocket = useCallback(() => {
@@ -124,28 +126,34 @@ export default function InsightScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>VisionMate Insight</Text>
+            {/* <View>
                 <View style={styles.statusContainer}>
                     <View style={[styles.statusDot, { backgroundColor: isStreaming ? "#4CAF50" : "#F44336" }]} />
                     <Text style={styles.statusText}>{isStreaming ? "Active" : "Connecting..."}</Text>
                 </View>
-            </View>
+            </View> */}
 
             <View style={styles.cameraContainer}>
-                <CameraView
-                    ref={cameraRef}
-                    style={styles.camera}
-                    facing={facing}
-                    animateShutter={false}
-                />
-
-                <TouchableOpacity
-                    style={[styles.flipButton, { bottom: insets.bottom + 20 }]}
-                    onPress={() => setFacing(c => c === "back" ? "front" : "back")}
+                {/* Full-screen camera view. Double-tap to switch camera. */}
+                <Pressable
+                    style={styles.cameraPressable}
+                    onPress={() => {
+                        const now = Date.now();
+                        if (lastTapRef.current && now - lastTapRef.current < 300) {
+                            setFacing((c) => (c === "back" ? "front" : "back"));
+                            lastTapRef.current = 0;
+                        } else {
+                            lastTapRef.current = now;
+                        }
+                    }}
                 >
-                    <MaterialIcons name="flip-camera-ios" size={30} color="white" />
-                </TouchableOpacity>
+                    <CameraView
+                        ref={cameraRef}
+                        style={styles.camera}
+                        facing={facing}
+                        animateShutter={false}
+                    />
+                </Pressable>
             </View>
 
             <View style={styles.infoContainer}>
@@ -197,11 +205,13 @@ const styles = StyleSheet.create({
     },
     cameraContainer: {
         flex: 1,
-        margin: 10,
-        borderRadius: 20,
+        margin: 0,
+        borderRadius: 0,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#333',
+        borderWidth: 0,
+    },
+    cameraPressable: {
+        flex: 1,
     },
     camera: {
         flex: 1,
