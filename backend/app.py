@@ -111,6 +111,9 @@ async def process_frame_detection(frame, target_lang="en"):
             coords = [int(x) for x in box.xyxy[0].tolist()]
             confidence = float(box.conf)
 
+            # Log each box so we can debug missing detections
+            logger.debug(f"Box detected: {class_name} conf={confidence:.2f} coords={coords}")
+
             # Clamp coordinates to frame boundaries (640x640)
             coords = [
                 max(0, min(coords[0], 639)),
@@ -169,6 +172,7 @@ async def process_frame_detection(frame, target_lang="en"):
             detection_text = ", ".join(unique_labels)
             logger.info(f"Detected {len(boxes_info)} boxes: {unique_labels}")
         else:
+            logger.info("No boxes detected in this frame")
             detection_text = translate_text("No objects detected", target_lang)
             logger.debug("⚠️ No objects detected in frame")
 
@@ -239,6 +243,7 @@ async def video_stream(websocket: WebSocket):
                     "status": "success",
                 }
             )
+            logger.debug(f"Sent to client: count={len(boxes_info)} text={detection_text}")
 
     except Exception as e:
         print(f" Error: {str(e)}")

@@ -483,23 +483,22 @@ export default function CameraScreen() {
                 )}
               </View>
 
-              {/* Overlay boxes & labels */}
+              {/* Draw detection boxes */}
               {detectedObjects.map((o, idx) => {
                 const [x1, y1, x2, y2] = o.box;
-                const left = `${(x1 / 640) * 100}%`;
-                const top = `${(y1 / 640) * 100}%`;
-                const width = `${((x2 - x1) / 640) * 100}%`;
-                const height = `${((y2 - y1) / 640) * 100}%`;
+                const left = (x1 / 640) * 100;
+                const top = (y1 / 640) * 100;
+                const width = ((x2 - x1) / 640) * 100;
+                const height = ((y2 - y1) / 640) * 100;
                 return (
                   <View
                     key={idx}
-                    style={[
-                      styles.box,
-                      { left, top, width, height }
-                    ]}
+                    style={[styles.box, { left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }]}
                     pointerEvents="none"
                   >
-                    <Text style={styles.boxLabel}>{o.label} {Math.round(o.confidence * 100)}%</Text>
+                    <Text style={styles.boxLabel}>
+                      {o.label} {Math.round((o.confidence ?? 0) * 100)}%
+                    </Text>
                   </View>
                 );
               })}
@@ -558,16 +557,22 @@ const styles = StyleSheet.create({
   },
   box: {
     position: "absolute",
+    borderColor: "rgba(255, 255, 255, 0.8)",
     borderWidth: 2,
-    borderColor: "yellow",
     borderRadius: 4,
-    zIndex: 10,
+    overflow: "hidden",
   },
   boxLabel: {
-    backgroundColor: "rgba(0,0,0,0.6)",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     color: "#fff",
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    fontSize: 12,
+    padding: 4,
+    fontSize: 14,
+    textAlign: "center",
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
   },
 });
