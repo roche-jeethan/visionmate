@@ -483,8 +483,8 @@ export default function CameraScreen() {
                 )}
               </View>
 
-              {/* Draw detection boxes
-              {detectedObjects.map((o, idx) => {
+              {/* Draw detection boxes */}
+              {/* {detectedObjects.map((o, idx) => {
                 const [x1, y1, x2, y2] = o.box;
                 const left = (x1 / 640) * 100;
                 const top = (y1 / 640) * 100;
