@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
     View,
     Text,
@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useCamera } from "../permissions/useCamera";
 import { SERVER_IP } from "../config/config";
 import { useScreenAnnounce } from "../hooks/useScreenAnnounce";
+import { useSpeech } from "../hooks/useSpeech";
 
 export default function InsightScreen() {
     useScreenAnnounce('VisionMate Insight');
@@ -28,6 +29,22 @@ export default function InsightScreen() {
     const wsRef = useRef<WebSocket | null>(null);
     const streamingRef = useRef(false);
     const lastTapRef = useRef<number>(0);
+    const speakText = useSpeech();
+    const lastSpokenRef = useRef<string | null>(null);
+
+    // Announce detected person similar to tab/screen announcements.
+    useEffect(() => {
+        if (currentPersonName) {
+            const phrase = `${currentPersonName} detected`;
+            if (lastSpokenRef.current !== phrase) {
+                speakText(phrase);
+                lastSpokenRef.current = phrase;
+            }
+        } else {
+            // reset so the same name can be announced again later
+            lastSpokenRef.current = null;
+        }
+    }, [currentPersonName, speakText]);
 
     // WebSocket and Camera Logic
     const closeWebSocket = useCallback(() => {
@@ -159,11 +176,10 @@ export default function InsightScreen() {
             <View style={styles.infoContainer}>
                 {currentPersonName ? (
                     <Text style={styles.personNameText}>
-                        Detected: <Text style={styles.highlightText}>{currentPersonName}</Text>
+                        <Text style={styles.highlightText}>{currentPersonName}</Text> detected
                     </Text>
                 ) : (
                     <Text style={styles.infoText}>
-                        Point the camera at a face to identify the person.
                     </Text>
                 )}
             </View>
