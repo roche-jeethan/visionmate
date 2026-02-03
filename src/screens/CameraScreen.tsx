@@ -292,7 +292,9 @@ export default function CameraScreen() {
         // Signal that we've received a response and are ready for the next frame
         isWaitingForResponse.current = false;
 
+        console.log("WS raw message:", event.data);
         const result: WSResponse = JSON.parse(event.data);
+        console.log("WS parsed result:", result);
 
         if (result.status === "error") {
           console.error("Server error:", result.error);
@@ -476,11 +478,31 @@ export default function CameraScreen() {
                 {!hasPermission && (
                   <Text style={styles.connectionStatus}>Camera permission required</Text>
                 )}
-                {/* Removed 'Initializing camera...' message */}
                 {detectionResult && (
                   <Text style={styles.detectionText}>{detectionResult}</Text>
                 )}
               </View>
+
+              {/* Overlay boxes & labels */}
+              {detectedObjects.map((o, idx) => {
+                const [x1, y1, x2, y2] = o.box;
+                const left = `${(x1 / 640) * 100}%`;
+                const top = `${(y1 / 640) * 100}%`;
+                const width = `${((x2 - x1) / 640) * 100}%`;
+                const height = `${((y2 - y1) / 640) * 100}%`;
+                return (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.box,
+                      { left, top, width, height }
+                    ]}
+                    pointerEvents="none"
+                  >
+                    <Text style={styles.boxLabel}>{o.label} {Math.round(o.confidence * 100)}%</Text>
+                  </View>
+                );
+              })}
             </CameraView>
           </View>
         </SafeAreaView>
@@ -533,5 +555,19 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: "rgba(255, 255, 255, 0.3)",
     zIndex: 1,
+  },
+  box: {
+    position: "absolute",
+    borderWidth: 2,
+    borderColor: "yellow",
+    borderRadius: 4,
+    zIndex: 10,
+  },
+  boxLabel: {
+    backgroundColor: "rgba(0,0,0,0.6)",
+    color: "#fff",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    fontSize: 12,
   },
 });

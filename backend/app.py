@@ -90,6 +90,8 @@ async def process_frame_detection(frame, target_lang="en"):
         t0 = time.time()
         logger.info(f"📸 Frame shape: {frame.shape}")
         img = cv2.resize(frame, (640, 640))
+        # convert BGR (OpenCV) -> RGB for the model
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         preprocess_time = time.time() - t0
 
         # Inference (use conf and iou params; Ultralyics applies NMS internally)
@@ -165,6 +167,7 @@ async def process_frame_detection(frame, target_lang="en"):
         if detected_labels:
             unique_labels = sorted(set(detected_labels))
             detection_text = ", ".join(unique_labels)
+            logger.info(f"Detected {len(boxes_info)} boxes: {unique_labels}")
         else:
             detection_text = translate_text("No objects detected", target_lang)
             logger.debug("⚠️ No objects detected in frame")
